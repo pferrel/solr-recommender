@@ -3,11 +3,11 @@ solr-recommender
 
 Simple recommender using Solr, works online with new history data in the queries. Does batch updates of the training/index data using Mahout.
 
-# Getting Started
+## Getting Started
 
 To compile the sources go to the root dir and run 'mvn clean install' or if you plan to compile on a mac and run on a linux cluster run ./scripts/mvn-install This will build the job jar with all dependencies in ./target/solr-recommender-0.1-SNAPSHOT-job.jar. The various tasks inside the jar are described below. Each CLI accessible job comes with a fairly complete description of their parameters by running with no parameters.
 
-# Task Pipeline
+## Task Pipeline
 
 There are sub jobs launched by some of these tasks but that detail aside there are three main tasks to run in order.
   1. Ingest text logfiles splitting into DistributedRowMatix(es) one per action
@@ -18,7 +18,7 @@ There are sub jobs launched by some of these tasks but that detail aside there a
   6. Queries, consisting of user history vectors of itemIDs are fed to Solr. If the primary action is being used for recommendations, the primary action field of the index is queried. If both primary (recommendations) and secondary (cross-recommendations) are desired both fields are queried. If item similarity is required, the doc associated with an item ID is returned indicating similar items. This document field will be ordered by the rank of similarity that any item has with the doc item.
   7. Solr returns a ranked list of items.
 
-# RecommenderDriverJob
+## RecommenderDriverJob
 
 This main task fires off all the subtasks each of which is a separate CLI accessible job.
 

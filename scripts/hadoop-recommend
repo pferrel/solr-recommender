@@ -1,0 +1,10 @@
+mahout recommenditembased \
+	--input mahout-recs/actions/m-and-w-cooked-p-a-train-09-28-2012-to-12-24-2012.converted.tsv  \
+	--output mahout-recs/recs/recs-multi-action-m-and-w-p-a-user-03-29-2013.tsv \
+	--numRecommendations 10 \
+	--usersFile <usersFile> \
+	--itemsFile <itemsFile> \
+	--filterFile <filterFile> \
+	--similarityClassnameSIMILARITY_LOGLIKELIHOOD \
+	--outputPathForSimilarityMatrix  tmp \
+	--tempDir tmp
