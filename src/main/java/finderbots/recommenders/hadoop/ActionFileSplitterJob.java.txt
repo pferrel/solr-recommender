@@ -28,7 +28,7 @@ import java.util.Map;
  * User: pat
  * Date: 4/9/13
  * Time: 8:05 AM
- * Takes a directory of files named 'ext-id.txt' and splits them by action so they can
+ * Takes a directory of files named 'part-xxxx' and splits them by action so they can
  * be fed to the recommender training jobs. This is done with HDFS tsv files as input and creates
  * the same as output.
  *
@@ -39,13 +39,13 @@ import java.util.Map;
  *    since it takes a bit of time to split HDFS files in this single threaded manner.
  */
 
-public class CombinedRetailActionFileSplitterJob extends AbstractJob {
-    //public static final String ACTION_1 = "PURCHASE";
-    //public static final String ACTION_2 = "ADD_TO_CART";
-    //public static final String ACTION_3 = "VIEW_DETAIL";
+public class ActionFileSplitterJob extends AbstractJob {
+    public static final String ACTION_1 = "purchase";
+    public static final String ACTION_2 = "view";
+    public static final String ACTION_3 = "";//none by default
     private static Logger LOGGER = Logger.getRootLogger();
 
-    public static enum Action { PURCHASE, ADD_TO_CART, VIEW_DETAIL }
+    //public static enum Action { PURCHASE, ADD_TO_CART, VIEW_DETAIL }
 
     public static final String ACTION_1_DIR = "purchase";
     public static final String ACTION_2_DIR = "view";
@@ -60,10 +60,10 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
     public static final String NUM_ITEMS_FILE = "num-items.bin";
     public static final String ACTION_1_EXTERNAL_ID_FILE = "purchase-ext-id.tsv";
     public static final String ACTION_2_EXTERNAL_ID_FILE = "view-ext-id.tsv";
-    public static final int ACTION_COLUMN = 2;
-    public static final int TIMESTAMP_COLUMN = 0;
-    public static final int ITEM_ID_COLUMN = 1;
-    public static final int USER_ID_COLUMN = 4;
+    public static final int ACTION_COLUMN = 1;
+    public static final int TIMESTAMP_COLUMN = -1;//-1 == no timestamp
+    public static final int ITEM_ID_COLUMN = 2;
+    public static final int USER_ID_COLUMN = 0;
     public static final String INPUT_DELIMETER = "\t";
     public static final String OUTPUT_DELIMETER = ",";
     public static final String USER_INDEX_PATH = "user-index";
@@ -71,7 +71,7 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
 
     private BiMap<String, String> userIndex;
     private BiMap<String, String> itemIndex;
-    private CookedFileSplitterJobOptions options;
+    private Options options;
 
 
     public void split(Path baseInputDir, Path baseOutputDir) throws IOException {
@@ -93,7 +93,7 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
         FSDataOutputStream actionOtherFile;
 
         //Eval output in case we use them for MAP
-        //1357152044224	00090772-d326-4ae0-a8d9-219d3b938a0c	ShowItemDetail	782430
+        //userID	action	itemID
         FSDataOutputStream evalAction1File;//purchases with external ids, used for eval
         FSDataOutputStream evalAction2File;//purchases with external ids, used for queries in eval
         if (!fs.exists(baseOutputDir)) {
@@ -120,7 +120,7 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
         evalAction1File = fs.create(evalAction1FilePath);
         evalAction2File = fs.create(evalAction2FilePath);
 
-        List<FSDataInputStream> cookedFiles = getCookedFiles(baseInputDir);
+        List<FSDataInputStream> cookedFiles = getActionFiles(baseInputDir);
 
         Integer uniqueUserIDCounter = 0;
         Integer uniqueItemIDCounter = 0;
@@ -129,7 +129,7 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
             String actionLogLine;
             while ((actionLogLine = bin.readLine()) != null) {//get user to make a rec for
                 String[] columns = actionLogLine.split(INPUT_DELIMETER);
-                String timestamp = columns[TIMESTAMP_COLUMN].trim();
+                //String timestamp = columns[TIMESTAMP_COLUMN].trim();//ignore timestamp for now
                 String externalUserIDString = columns[USER_ID_COLUMN].trim();
                 String externalItemIDString = columns[ITEM_ID_COLUMN].trim();
                 String actionString = columns[ACTION_COLUMN].trim();
@@ -152,26 +152,18 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
                     this.itemIndex.forcePut(externalItemIDString, internalItemID);
                     uniqueItemIDCounter += 1;
                 }
-                switch (Action.valueOf(actionString)) {
-                    case PURCHASE:
-                        action1File.writeBytes(internalUserID + OUTPUT_DELIMETER + internalItemID + OUTPUT_DELIMETER + "1.0\n");
-                        evalAction1File.writeBytes(timestamp + INPUT_DELIMETER + externalUserIDString + INPUT_DELIMETER + actionString + INPUT_DELIMETER + externalItemIDString + "\n");
-                        break;
-                    case VIEW_DETAIL:
-                        action2File.writeBytes(internalUserID + OUTPUT_DELIMETER + internalItemID + OUTPUT_DELIMETER + "1.0\n");
-                        evalAction2File.writeBytes(timestamp + INPUT_DELIMETER + externalUserIDString + INPUT_DELIMETER + actionString + INPUT_DELIMETER + externalItemIDString + "\n");
 
-                        break;
-                    case ADD_TO_CART:
-                        if(options.getKeepPurchaseAndAddToCartTogether()){//merge purchase and atc
-                            action1File.writeBytes(internalUserID + OUTPUT_DELIMETER + internalItemID + OUTPUT_DELIMETER + "1.0\n");
-                        } else { //keep the actions separate
-                            action3File.writeBytes(internalUserID + OUTPUT_DELIMETER + internalItemID + OUTPUT_DELIMETER + "1.0\n");
-                        }
-                        break;
-                    default:
-                        actionOtherFile.writeBytes(actionLogLine);//write what's not recognized
-                        break;
+                if(actionString.equals(options.getAction1())) {
+                        action1File.writeBytes(internalUserID + OUTPUT_DELIMETER + internalItemID + OUTPUT_DELIMETER + "1.0\n");
+                        evalAction1File.writeBytes(externalUserIDString + INPUT_DELIMETER + actionString + INPUT_DELIMETER + externalItemIDString + "\n");
+                } else if(actionString.equals(options.getAction2())){
+                        action2File.writeBytes(internalUserID + OUTPUT_DELIMETER + internalItemID + OUTPUT_DELIMETER + "1.0\n");
+                        evalAction2File.writeBytes(externalUserIDString + INPUT_DELIMETER + actionString + INPUT_DELIMETER + externalItemIDString + "\n");
+                } else if(actionString.equals(options.getAction2())){
+                    action3File.writeBytes(internalUserID + OUTPUT_DELIMETER + internalItemID + OUTPUT_DELIMETER + "1.0\n");
+                } else {
+                    actionOtherFile.writeBytes(actionLogLine);//write what's not recognized
+                    LOGGER.debug("Action not recognized from log file: "+actionLogLine);
                 }
             }
         }
@@ -194,7 +186,7 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
             FSDataOutputStream itemIndexFile = fs.create(itemIndexPath);
             this.saveIndex(itemIndex, itemIndexFile);
         } else {
-            throw new IOException("Bad locaton for ID Indeces: " + where.toString());
+            throw new IOException("Bad locaton for ID Indexes: " + where.toString());
         }
     }
 
@@ -214,16 +206,17 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
         return this.itemIndex.size();
     }
 
-    public List<FSDataInputStream> getCookedFiles(Path baseInputDir) throws IOException {
+    public List<FSDataInputStream> getActionFiles(Path baseInputDir) throws IOException {
         List<FSDataInputStream> files = new ArrayList<FSDataInputStream>();
         FileSystem fs = baseInputDir.getFileSystem(getConf());
         if (fs.getFileStatus(baseInputDir).isDir()) {
             FileStatus[] stats = fs.listStatus(baseInputDir);
             for (FileStatus fstat : stats) {
-                if (fstat.getPath().getName().contains("cooked.txt") && !fstat.isDir()) {
+                //todo: change to regex match instead of 'contains'
+                if (fstat.getPath().getName().contains(options.getInputFilePattern()) && !fstat.isDir()) {
                     files.add(fs.open(fstat.getPath()));
                 } else if (fstat.isDir()) {
-                    files.addAll(getCookedFiles(fstat.getPath()));
+                    files.addAll(getActionFiles(fstat.getPath()));
                 }
             }
         }
@@ -232,7 +225,7 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
 
     @Override
     public int run(String[] args) throws Exception {
-        options = new CookedFileSplitterJobOptions();
+        options = new Options();
         CmdLineParser parser = new CmdLineParser(options);
         String s = options.toString();
 
@@ -270,89 +263,112 @@ public class CombinedRetailActionFileSplitterJob extends AbstractJob {
     }
 
     public static void main(String[] args) throws Exception {
-        ToolRunner.run(new Configuration(), new CombinedRetailActionFileSplitterJob(), args);
+        ToolRunner.run(new Configuration(), new ActionFileSplitterJob(), args);
     }
 
     // Command line options for this job. Execute the main method above with no parameters
     // to get a help listing.
     //
 
-    public class CookedFileSplitterJobOptions {
+    public class Options {
 
-        //private String tempPath;
-        private String inputDirPath;
-        private String outputDirPath;
-        private String userIndexDirPath;
-        private String indexDirPath;
-        private String itemIndexDirPath;
-        private Boolean keepPurchaseAndAddToCartTogether;
-
+        private static final String DEFAULT_ACTION_1 = "purchase";
+        private static final String DEFAULT_ACTION_2 = "view";
+        private static final String DEFAULT_ACTION_3 = "";//none by default
+        private static final String DEFAULT_INPUT_FILE_PATTERN = "part-";
         private static final String DEFAULT_TEMP_PATH = "tmp";
 
-        CookedFileSplitterJobOptions() {
-            //this.tempPath = DEFAULT_TEMP_PATH;
-            this.keepPurchaseAndAddToCartTogether = false;
+        private String action1 = DEFAULT_ACTION_1;
+        private String action2 = DEFAULT_ACTION_2;
+        private String action3 = DEFAULT_ACTION_3;
+        private String inputFilePattern = DEFAULT_INPUT_FILE_PATTERN;//find part-xxxx files by default
+        private String inputDir;
+        private String outputDir;
+        private String userIndexDir;
+        private String indexDir;
+        private String itemIndexDir;
+
+
+        Options() {
         }
 
-        public Boolean getKeepPurchaseAndAddToCartTogether() {
-            return keepPurchaseAndAddToCartTogether;
+        public String getAction1() {
+            return action1;
         }
 
-        @Option(name = "--keepPurchaseAndAddToCartTogether", usage = "Merge the purchase actions and add-to-cart actions into the primary preferences file.", required = false)
-        public void setKeepPurchaseAndAddToCartTogether(Boolean keepPurchaseAndAddToCartTogether) {
-            this.keepPurchaseAndAddToCartTogether = keepPurchaseAndAddToCartTogether;
+        @Option(name = "-a1", aliases = { "--action1" }, usage = "String to match for primary action in log files (optional). Default: 'purchase'", required = false)
+        public void setAction1(String action1) {
+            this.action1 = action1;
+        }
+
+        public String getAction2() {
+            return action2;
+        }
+
+        @Option(name = "-a2", aliases = { "--action2" }, usage = "String to match for primary action in log files (optional). Default: 'view'", required = false)
+        public void setAction2(String action2) {
+            this.action2 = action2;
+        }
+
+        public String getAction3() {
+            return action3;
+        }
+
+        @Option(name = "-a3", aliases = { "--action3" }, usage = "String to match for primary action in log files (optional). Default: 'add-to-cart'", required = false)
+        public void setAction3(String action3) {
+            this.action3 = action3;
+        }
+
+        public String getInputFilePattern() {
+            return inputFilePattern;
+        }
+
+        @Option(name = "-p", aliases = { "--inputFilePattern" }, usage = "Regex pattern to match in finding action log files (optional). Default: 'part-'.", required = false)
+        public void setInputFilePattern(String inputFilePattern ) {
+            this.inputFilePattern = inputFilePattern;
         }
 
         public String getIndexDirPath() {
-            return indexDirPath;
+            return indexDir;
         }
 
-        @Option(name = "--indexesDir", usage = "Place for external to internal item and user ID indexes. This directory will be deleted before the indexes are written", required = true)
-        public void setIndexDirPath(String indexDirPath) {
-            this.indexDirPath = indexDirPath;
+        @Option(name = "-ix", aliases = { "--indexesDir" }, usage = "Place for external to internal item and user ID indexes. This directory will be deleted before the indexes are written", required = true)
+        public void setIndexDir(String indexDir) {
+            this.indexDir = indexDir;
         }
 
-        public String getUserIndexDirPath() {
-            return userIndexDirPath;
+        public String getUserIndexDir() {
+            return userIndexDir;
         }
 
-        public void setUserIndexDirPath(String userIndexDirPath) {
-            this.userIndexDirPath = userIndexDirPath;
+        public void setUserIndexDirPath(String userIndexDir) {
+            this.userIndexDir = userIndexDir;
         }
 
-        public String getItemIndexDirPath() {
-            return itemIndexDirPath;
+        public String getItemIndexDir() {
+            return itemIndexDir;
         }
 
-        public void setItemIndexDirPath(String itemIndexDirPath) {
-            this.itemIndexDirPath = itemIndexDirPath;
-        }
-/*
-        @Option(name = "--tempDir", usage = "Place for intermediate data. Left after job but erased before starting (optional). Default: 'tmp'", required = false)
-        public void setTempPath(String tempPath) {
-            this.tempPath = tempPath;
+        public void setItemIndexDir(String itemIndexDir) {
+            this.itemIndexDir = itemIndexDir;
         }
 
-        public String getTempPath() {
-            return this.tempPath;
-        }
-*/
-        @Option(name = "--inputDir", usage = "Dir that will be searched recursively for files that have mixed actions. These will be split into the output dir.", required = true)
-        public void setInputDirPath(String primaryInputDirPath) {
-            this.inputDirPath = primaryInputDirPath;
+        @Option(name = "-i", aliases = { "--inputDir" }, usage = "Dir that will be searched recursively for files that have mixed actions. These will be split into the output dir.", required = true)
+        public void setInputDir(String primaryInputDir) {
+            this.inputDir = primaryInputDir;
         }
 
         public String getInputDirPath() {
-            return this.inputDirPath;
+            return this.inputDir;
         }
 
-        @Option(name = "--outputDir", usage = "Output directory for recs.", required = true)
+        @Option(name = "-o", aliases = { "--outputDir" }, usage = "Output directory for recs.", required = true)
         public void setOutputDirPath(String outputDirPath) {
-            this.outputDirPath = outputDirPath;
+            this.outputDir = outputDirPath;
         }
 
         public String getOutputDirPath() {
-            return this.outputDirPath;
+            return this.outputDir;
         }
 
         @Override

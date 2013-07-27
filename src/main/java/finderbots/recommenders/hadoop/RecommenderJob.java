@@ -206,7 +206,7 @@ public final class RecommenderJob extends AbstractJob {
       });
 
       // write out the similarity matrix if the user specified that behavior
-      if (hasOption("outputPathForSimilarityMatrix")) {
+      if (hasOption("w")) {
         Path outputPathForSimilarityMatrix = new Path(getOption("outputPathForSimilarityMatrix"));
 
         Job outputSimilarityMatrix = prepareJob(similarityMatrixPath, outputPathForSimilarityMatrix,

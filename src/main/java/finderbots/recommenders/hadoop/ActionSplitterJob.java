@@ -60,13 +60,10 @@ public class ActionSplitterJob extends AbstractJob {
         Path action2DirPath = new Path(baseOutputDir, options.getAction2Dir());
         Path action3DirPath = new Path(baseOutputDir, options.getAction3Dir());
         Path actionOtherDirPath = new Path(baseOutputDir, options.getActionOtherDir());
-        Path evalDirPath = new Path(baseOutputDir, options.getEvalDir());
         Path action1FilePath = new Path(action1DirPath, options.getAction1File());
         Path action2FilePath = new Path(action2DirPath, options.getAction2File());
         Path action3FilePath = new Path(action3DirPath, options.getAction3File());
         Path actionOtherFilePath = new Path(actionOtherDirPath, options.getActionOtherFile());
-        Path evalAction1FilePath = new Path(evalDirPath, options.getAction1ExternalIdFile());
-        Path evalAction3FilePath = new Path(evalDirPath, options.getAction3ExternalIdFile());
         FSDataOutputStream action1File;
         FSDataOutputStream action2File;
         FSDataOutputStream action3File;
@@ -87,20 +84,16 @@ public class ActionSplitterJob extends AbstractJob {
         if(fs.exists(action2DirPath)) fs.delete(action2DirPath, true);
         if(fs.exists(action3DirPath)) fs.delete(action3DirPath, true);
         if(fs.exists(actionOtherDirPath)) fs.delete(actionOtherDirPath, true);
-        if(fs.exists(evalDirPath)) fs.delete(evalDirPath, true);
 
         // cleaned out prefs if they existed, now create a place to put the new ones
         fs.mkdirs(action1DirPath);
         fs.mkdirs(action2DirPath);
         fs.mkdirs(action3DirPath);
         fs.mkdirs(actionOtherDirPath);
-        fs.mkdirs(evalDirPath);
         action1File = fs.create(action1FilePath);
         action2File = fs.create(action2FilePath);
         action3File = fs.create(action3FilePath);
         actionOtherFile = fs.create(actionOtherFilePath);
-        evalAction1File = fs.create(evalAction1FilePath);
-        evalAction3File = fs.create(evalAction3FilePath);
 
         List<FSDataInputStream> actionFiles = getActionFiles(baseInputDir);
 
@@ -125,7 +118,7 @@ public class ActionSplitterJob extends AbstractJob {
                     internalUserID = uniqueUserIDCounter.toString();
                     this.userIndex.forcePut(externalUserIDString, internalUserID);
                     uniqueUserIDCounter += 1;
-                    if(uniqueUserIDCounter % 10000 == 0) LOGGER.info("Splitter processed: "+Integer.toString(uniqueUserIDCounter)+" unique users.");
+                    if(uniqueUserIDCounter % 10000 == 0) LOGGER.debug("Splitter processed: "+Integer.toString(uniqueUserIDCounter)+" unique users.");
                 }
                 if (this.itemIndex.containsKey(externalItemIDString)) {// already in the index
                     internalItemID = this.itemIndex.get(externalItemIDString);
@@ -136,17 +129,10 @@ public class ActionSplitterJob extends AbstractJob {
                 }
                 if(actionString.equals(options.getAction1())){
                     action1File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
-                    evalAction1File.writeBytes(timestamp + options.getInputDelimiter() + externalUserIDString + options.getInputDelimiter() + actionString + options.getInputDelimiter() + externalItemIDString + "\n");
                 } else if(actionString.equals(options.getAction2())){
-                    if(options.getMergeAction1AndAction2()){//merge purchase and atc
-                        action1File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
-                    } else { //keep the actions separate
-                        action2File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
-                    }
+                     action2File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
                 } else if(actionString.equals(options.getAction3())){
                     action3File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
-                    evalAction3File.writeBytes(timestamp + options.getInputDelimiter() + externalUserIDString + options.getInputDelimiter() + actionString + options.getInputDelimiter() + externalItemIDString + "\n");
-
                 } else {
                     actionOtherFile.writeBytes(actionLogLine);//write what's not recognized
                     break;
@@ -157,8 +143,6 @@ public class ActionSplitterJob extends AbstractJob {
         action2File.close();
         action3File.close();
         actionOtherFile.close();
-        evalAction1File.close();
-        evalAction3File.close();
         int i = 0;
     }
 
@@ -285,6 +269,10 @@ public class ActionSplitterJob extends AbstractJob {
         return options.getAction3Dir();
     }
 
+    public ActionSplitterJob.Options getOptions(){
+        return options;
+    }
+
    /*
     * This class implements an option parser. It clashes somewhat with Mahouts in AbstractJob since it
     * does some of the same things in a slightly different way. Used because the options are so numerous
@@ -292,60 +280,41 @@ public class ActionSplitterJob extends AbstractJob {
     */
     public class Options {
         //action 1 derived
-        protected final String DEFAULT_ACTION_1 = "purchase";
-        protected final String DEFAULT_ACTION_1_DIR = toDirName(DEFAULT_ACTION_1);
-        protected final String DEFAULT_ACTION_1_FILE = DEFAULT_ACTION_1_DIR + getTextFileExtension();
-        protected final String DEFAULT_ACTION_1_EXTERNAL_ID_FILE = DEFAULT_ACTION_1_DIR + "-ext-id.tsv";
+        private static final String DEFAULT_ACTION_1 = "purchase";
+        private static final String DEFAULT_ACTION_2 = "add-to-cart";
+        private static final String DEFAULT_ACTION_3 = "view";
+        private static final String DEFAULT_ACTION_OTHER = "other";
 
-        //action 2 derived
-        protected final String DEFAULT_ACTION_2 = "add-to-cart";
-        protected final String DEFAULT_ACTION_2_DIR = toDirName(DEFAULT_ACTION_2);
-        protected final String DEFAULT_ACTION_2_FILE = DEFAULT_ACTION_2_DIR + getTextFileExtension();
-
-        //action 3 derived
-        protected final String DEFAULT_ACTION_3 = "view";
-        protected final String DEFAULT_ACTION_3_DIR = toDirName(DEFAULT_ACTION_3);
-        protected final String DEFAULT_ACTION_3_FILE = DEFAULT_ACTION_3_DIR + getTextFileExtension();
-        protected final String DEFAULT_ACTION_3_EXTERNAL_ID_FILE = DEFAULT_ACTION_3_DIR + "-ext-id.tsv";
-
-        //actions left over after splitting
-        protected final String DEFAULT_ACTION_OTHER_DIR = "other";
-        protected final String DEFAULT_ACTION_OTHER_FILE = DEFAULT_ACTION_OTHER_DIR + ".csv";
-
-        protected final String DEFAULT_ACTION_EVAL_DIR = "eval";
-        protected final String DEFAULT_NUM_USERS_FILE = "num-users.bin";
-        protected final String DEFAULT_NUM_ITEMS_FILE = "num-items.bin";
-        protected final int DEFAULT_TIMESTAMP_COLUMN = 0;
-        protected final int DEFAULT_ITEM_ID_COLUMN = 1;
-        protected final int DEFAULT_ACTION_COLUMN = 2;
-        protected final int DEFAULT_USER_ID_COLUMN = 4;
-        protected final String TSV_DELIMETER = "\t";
-        protected final String CSV_DELIMETER = ",";
-        protected final String DEFAULT_INPUT_DELIMITER = TSV_DELIMETER;
-        protected final String DEFAULT_OUTPUT_DELIMITER = CSV_DELIMETER;
-        protected final String DEFAULT_INDEX_DIR_PATH = "id-indexes";
-        protected final String DEFAULT_USER_INDEX_FILE = "user-index";
-        protected final String DEFAULT_ITEM_INDEX_FILE = "item-index";
-        protected final String DEFAULT_TEMP_PATH = "tmp";
-        protected final Boolean DEFAULT_MERGE_ACTION1_AND_ACTION2 = false;
+        private static final String DEFAULT_ACTION_EVAL_DIR = "eval";
+        private static final String DEFAULT_NUM_USERS_FILE = "num-users.bin";
+        private static final String DEFAULT_NUM_ITEMS_FILE = "num-items.bin";
+        private static final int DEFAULT_TIMESTAMP_COLUMN = 0;
+        private static final int DEFAULT_ITEM_ID_COLUMN = 1;
+        private static final int DEFAULT_ACTION_COLUMN = 2;
+        private static final int DEFAULT_USER_ID_COLUMN = 4;
+        private static final String TSV_DELIMETER = "\t";
+        private static final String CSV_DELIMETER = ",";
+        private static final String DEFAULT_INPUT_DELIMITER = TSV_DELIMETER;
+        private static final String DEFAULT_OUTPUT_DELIMITER = TSV_DELIMETER;
+        private static final String DEFAULT_INDEX_DIR_PATH = "id-indexes";
+        private static final String DEFAULT_USER_INDEX_FILE = "user-index";
+        private static final String DEFAULT_ITEM_INDEX_FILE = "item-index";
+        private static final String DEFAULT_TEMP_PATH = "tmp";
 
         // these could be options if the defaults are not enough
         private String action1 = DEFAULT_ACTION_1;
         private String action2 = DEFAULT_ACTION_2;
         private String action3 = DEFAULT_ACTION_3;
-        private String action1Dir = DEFAULT_ACTION_1_DIR;
-        private String action2Dir = DEFAULT_ACTION_2_DIR;
-        private String action3Dir = DEFAULT_ACTION_3_DIR;
-        private String actionOtherDir = DEFAULT_ACTION_OTHER_DIR;
-        private String evalDir = DEFAULT_ACTION_EVAL_DIR;
-        private String action1File = DEFAULT_ACTION_1_FILE;
-        private String action2File = DEFAULT_ACTION_2_FILE;
-        private String action3File = DEFAULT_ACTION_3_FILE;
-        private String actionOtherFile = DEFAULT_ACTION_OTHER_FILE;
+        private String action1Dir;
+        private String action2Dir;
+        private String action3Dir;
+        private String actionOtherDir;
+        private String action1File;
+        private String action2File;
+        private String action3File;
+        private String actionOtherFile;
         private String numUsersFile = DEFAULT_NUM_USERS_FILE;
         private String numItemsFile = DEFAULT_NUM_ITEMS_FILE;
-        private String action1ExternalIdFile = DEFAULT_ACTION_1_EXTERNAL_ID_FILE;
-        private String action3ExternalIdFile = DEFAULT_ACTION_3_EXTERNAL_ID_FILE;
         private int actionColumn = DEFAULT_ACTION_COLUMN;
         private int timestampColumn = DEFAULT_TIMESTAMP_COLUMN;
         private int itemIdColumn = DEFAULT_ITEM_ID_COLUMN;
@@ -355,7 +324,6 @@ public class ActionSplitterJob extends AbstractJob {
         private String tempPath = DEFAULT_TEMP_PATH;
 
         //optional or derived from required options
-        private Boolean mergeAction1AndAction2 = DEFAULT_MERGE_ACTION1_AND_ACTION2;
         private String indexDirPath = DEFAULT_INDEX_DIR_PATH;
         private String itemIndexFile = DEFAULT_ITEM_INDEX_FILE;
         private String userIndexFile = DEFAULT_USER_INDEX_FILE;
@@ -364,8 +332,16 @@ public class ActionSplitterJob extends AbstractJob {
         private String inputDirPath;
         private String outputDirPath;
 
-
         Options() {
+            //setup default values before processing args
+            this.action1Dir = toDirName(DEFAULT_ACTION_1);
+            this.action1File = this.action1Dir + getTextFileExtension();
+            this.action2Dir = toDirName(DEFAULT_ACTION_2);
+            this.action2File = this.action2Dir + getTextFileExtension();
+           this.action3Dir = toDirName(DEFAULT_ACTION_3);
+           this.action3File = this.action3Dir + getTextFileExtension();
+           this.actionOtherDir = toDirName(DEFAULT_ACTION_OTHER);
+           this.actionOtherFile = this.actionOtherFile + getTextFileExtension();
         }
 
 
@@ -468,16 +444,6 @@ public class ActionSplitterJob extends AbstractJob {
             this.outputDelimiter = outputDelimiter;
         }
 
-        public Boolean getMergeAction1AndAction2() {
-            return mergeAction1AndAction2;
-        }
-
-        @Option(name = "--mergeAction1AndAction2", usage = "Merge the purchase actions and add-to-cart actions, for example, into the primary preferences file.", required = false)
-        public Options setMergeAction1AndAction2(Boolean mergeAction1AndAction2) {
-            this.mergeAction1AndAction2 = mergeAction1AndAction2;
-            return this;
-        }
-
         public String getIndexDirPath() {
             return indexDirPath;
         }
@@ -533,10 +499,6 @@ public class ActionSplitterJob extends AbstractJob {
             return actionOtherDir;
         }
 
-        public String getEvalDir() {
-            return evalDir;
-        }
-
         public String getAction1File() {
             return action1File;
         }
@@ -559,14 +521,6 @@ public class ActionSplitterJob extends AbstractJob {
 
         public String getNumItemsFile() {
             return numItemsFile;
-        }
-
-        public String getAction1ExternalIdFile() {
-            return action1ExternalIdFile;
-        }
-
-        public String getAction3ExternalIdFile() {
-            return action3ExternalIdFile;
         }
 
         @Override

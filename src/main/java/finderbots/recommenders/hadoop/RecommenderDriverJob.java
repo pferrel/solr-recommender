@@ -45,15 +45,13 @@ import java.util.Date;
 public final class RecommenderDriverJob extends AbstractJob {
     private static Logger LOGGER = Logger.getRootLogger();
 
-    public static final String PREFS_ROOT_DIR = "prefs";
-    public static final String ID_INDEXES_PATH = "id-indexes";
     private int numberOfUsers;
     private int numberOfItems;
-    private static RecsDriverOptions options;
+    private static Options options;
 
     @Override
     public int run(String[] args) throws Exception {
-        options = new RecsDriverOptions();
+        options = new Options();
         CmdLineParser parser = new CmdLineParser(options);
         String s = options.toString();
 
@@ -68,81 +66,73 @@ public final class RecommenderDriverJob extends AbstractJob {
 
         cleanOutputDirs(options);
         // If using externalid files treat input as root dir of externalid files
-        if (options.getUseExternalidFiles()) {//todo: using raw preference files is not tested
-            Path prefFilesRootDir = new Path(options.getOutputDirPath());
-            FileSystem fs = prefFilesRootDir.getFileSystem(getConf());
-            Path indexesPath = new Path(prefFilesRootDir, ID_INDEXES_PATH);
-            Path prefsPath = new Path(prefFilesRootDir, PREFS_ROOT_DIR);
-            options.setPrefsPath(prefsPath.toString());
+        Path prefFilesRootDir = new Path(options.getOutputDir());
+        FileSystem fs = prefFilesRootDir.getFileSystem(getConf());
+        Path indexesPath = new Path(prefFilesRootDir, options.getIndexesDir());
+        Path prefsPath = new Path(prefFilesRootDir, options.getPrefsDir());
+        options.setPrefsPath(prefsPath.toString());
 
-            if(!options.getDoNotSplit()){//if this is false we are splitting
-                // split into actions and store in subdirs
-                // create and index for users and another for items
-                // this job cleans out the output dir first
-                if(options.getKeepPurchaseAndAddToCartTogether()){
-                    ToolRunner.run(getConf(), new CombinedRetailActionFileSplitterJob(), new String[]{
-                        "--inputDir", options.getInputDirPath(),
-                        "--outputDir", prefsPath.toString(),
-                        "--indexesDir", indexesPath.toString(),
-                        "--keepPurchaseAndAddToCartTogether",
-                    });
-                } else { // keep purchase and atc separate
-                    ToolRunner.run(getConf(), new CombinedRetailActionFileSplitterJob(), new String[]{
-                        "--inputDir", options.getInputDirPath(),
-                        "--outputDir", prefsPath.toString(),
-                        "--indexesDir", indexesPath.toString(),
-                    });
-                }
-            }// otherwise assume we have already split
+        // split into actions and store in subdirs
+        // create and index for users and another for items
+        // this job cleans out the output dir first
+        ActionSplitterJob aj = new ActionSplitterJob();
+        ToolRunner.run(getConf(), aj, new String[]{
+            "--inputDir", options.getInputDir(),
+            "--outputDir", prefsPath.toString(),
+            "--indexesDir", indexesPath.toString(),
+            "--inputFilePattern", ".tsv",
+        });
 
-            // need to get the number of users and items from the splitter, which also creates indexes
-            this.numberOfUsers = HadoopUtil.readInt(new Path(indexesPath, CombinedRetailActionFileSplitterJob.NUM_USERS_FILE), getConf());
-            this.numberOfItems = HadoopUtil.readInt(new Path(indexesPath, CombinedRetailActionFileSplitterJob.NUM_ITEMS_FILE), getConf());
-            // these are single value binary files written with
-            // HadoopUtil.writeInt(this.numberOfUsers, getOutputPath(NUM_USERS), getConf());
+        // need to get the number of users and items from the splitter, which also creates indexes
+        this.numberOfUsers = HadoopUtil.readInt(new Path(indexesPath, aj.getOptions().getNumUsersFile()), getConf());
+        this.numberOfItems = HadoopUtil.readInt(new Path(indexesPath, aj.getOptions().getNumItemsFile()), getConf());
+        // these are single value binary files written with
+        // HadoopUtil.writeInt(this.numberOfUsers, getOutputPath(NUM_USERS), getConf());
 
-            options.setInputDirPath(prefFilesRootDir.toString());
-        }
+        options.setInputDirPath(prefFilesRootDir.toString());
 
-
+        //Path action1Prefs = new Path(new Path(getInputDir(),getPrefsDir()), ActionFileSplitterJob.ACTION_1_DIR).toString();
+        String action1PrefsPath = new Path(new Path(options.getInputDir(),options.getPrefsDir()), aj.getOptions().getAction1Dir()).toString();
 
         ToolRunner.run(getConf(), new RecommenderJob(), new String[]{
-            "--input", options.getPrimaryActionsPath(),
+            "--input", action1PrefsPath,
             "--output", options.getPrimaryRecsPath(),
             "--similarityClassname", options.getSimilairtyType(),
             //this options creates a text file from the similarity matrix--not needed if you want to use the sequencefile
             //which is already in the temp dir.
 //            "--outputPathForSimilarityMatrix", options.getPrimarySimilarityMatrixPath(),
-            "--tempDir", options.getPrimaryTempPath(),
+            "--tempDir", options.getPrimaryTempDir(),
         });
         // move the similarity matrix to the p-recs/sims location rather than leaving is in the tmp dir
         moveSimilarityMatrix();
 
         if(options.getDoXRecommender()){
             ToolRunner.run(getConf(), new XRecommenderJob(), new String[]{
-                "--input", options.getAllActionsPath(),
-                "--output", options.getSecondaryOutputDirPath(),
+                "--input", options.getAllActionsDir(),
+                "--output", options.getSecondaryOutputDir(),
                 "--similarityClassname", "SIMILARITY_LOGLIKELIHOOD",
                 "--outputPathForSimilarityMatrix", options.getSecondarySimilarityMatrixPath(),
-                "--tempDir", options.getSecondaryTempPath(),
+                "--tempDir", options.getSecondaryTempDir(),
                 "--numUsers", Integer.toString(this.numberOfUsers),
                 "--numItems", Integer.toString(this.numberOfItems),
+                "--primaryPrefs", options.getPrimaryPrefsDir(),
+                "--secondaryPrefs", options.getSecondaryPrefsDir(),
             });
         }
 
         return 0;
     }
 
-    private static void cleanOutputDirs(RecsDriverOptions options) throws IOException {
+    private static void cleanOutputDirs(Options options) throws IOException {
         FileSystem fs = FileSystem.get(new JobConf());
         //instead of deleting all, should delete only the ones we overwrite
-        Path primaryOutputDir = new Path(options.getPrimaryOutputDirPath());
+        Path primaryOutputDir = new Path(options.getPrimaryOutputDir());
         try{
             fs.delete(primaryOutputDir, true);
         } catch (Exception e){
             LOGGER.info("No primary output dir to delete, skipping.");
         }
-        Path secondaryOutputDir = new Path(options.getSecondaryOutputDirPath());
+        Path secondaryOutputDir = new Path(options.getSecondaryOutputDir());
         try{
             fs.delete(secondaryOutputDir, true);
         } catch (Exception e){
@@ -156,7 +146,7 @@ public final class RecommenderDriverJob extends AbstractJob {
             LOGGER.info("No recs dir to delete, skipping.");
         }
         try{
-            fs.delete(new Path(options.getTempPath()), true);
+            fs.delete(new Path(options.getTempDir()), true);
         } catch (Exception e){
             LOGGER.info("No temp dir to delete, skipping.");
         }
@@ -166,9 +156,10 @@ public final class RecommenderDriverJob extends AbstractJob {
     private static void moveSimilarityMatrix() throws IOException {
         FileSystem fs = FileSystem.get(new JobConf());
         Path from = new Path(options.getPrimarySimilarityMatrixPath());
-        Path to = new Path(options.getPrimaryOutputDirPath(),XRecommenderJob.SIMS_MATRIX_PATH);//steal the path for Xrec though created by regular recommender
+        Path to = new Path(options.getPrimaryOutputDir(),XRecommenderJob.SIMS_MATRIX_PATH);//steal the path for Xrec though created by regular recommender
         fs.rename(from, to);
     }
+
 
     public static void main(String[] args) throws Exception {
         ToolRunner.run(new Configuration(), new RecommenderDriverJob(), args);
@@ -178,12 +169,7 @@ public final class RecommenderDriverJob extends AbstractJob {
     // to get a help listing.
     //
 
-    public class RecsDriverOptions {
-
-        public static final String USER_ONLY = "USER-ONLY";
-        public static final String ITEM_ONLY = "ITEM-ONLY";
-        public static final String USER_ITEM = "USER-ITEM";
-        public static final String ITEM_USER = "ITEM-USER";
+    public class Options {
 
         private String similairtyType = LOG_LIKELIHOOD;//hard coded to log-likelihood
         public static final String LOG_LIKELIHOOD = "SIMILARITY_LOGLIKELIHOOD";
@@ -192,137 +178,215 @@ public final class RecommenderDriverJob extends AbstractJob {
         public static final String TANIMOTO = "SIMILARITY_TANIMOTO_COEFFICIENT";
         public static final String CITY_BLOCK = "SIMILARITY_CITY_BLOCK";
 
-        private static final String PRIMARY_OUTPUT_PATH = "p-recs";
-        private static final String SECONDARY_OUTPUT_PATH = "s-recs";
-        private static final String DEFAULT_PREFS_PATH = "prefs";
-        private static final String DEFAULT_TEMP_PATH = "tmp";
+        private static final int DEFAULT_TIMESTAMP_COLUMN = -1;//not used by default
+        private static final int DEFAULT_UESERID_COLUMN = 0;//not used by default
+        private static final int DEFAULT_ACTION_COLUMN = 1;//not used by default
+        private static final int DEFAULT_ITEMID_COLUMN = 2;//not used by default
+        //default TSV preferences layout = userID   action  itemID
+        private static final String DEFAULT_ACTION_1 = "purchase";
+        private static final String DEFAULT_ACTION_2 = "view";
+        private static final String DEFAULT_ACTION_3 = "";// not used but can be split out if specified
+        private static final String PRIMARY_OUTPUT_DIR = "p-recs";
+        private static final String SECONDARY_OUTPUT_DIR = "s-recs";
+        private static final String DEFAULT_PREFS_DIR = "prefs";
+        private static final String DEFAULT_PRIMARY_PREFS_PATH = "primary-prefs";
+        private static final String DEFAULT_SECONDARY_PREFS_PATH = "secondary-prefs";
+        private static final String DEFAULT_INDEXES_DIR = "id-indexes";
+        private static final String DEFAULT_TEMP_DIR = "tmp";
         private static final String PRIMARY_TEMP_DIR = "tmp1";
         private static final String ROOT_RECS_DIR = "recs";
         private static final String SECONDARY_TEMP_DIR = "tmp2";
         private static final String PRIMARY_SIMILARITY_MATRIX = "similarityMatrix";//defined as a quoted String in mahout
         public static final String ROOT_SIMS_DIR = "sims";//defined as a quoted String in mahout
+        private static final String DEFAULT_FILE_PATTERN = "part-";
+
+        private int timestampColumn = DEFAULT_TIMESTAMP_COLUMN;
+        private int userIDColumn = DEFAULT_UESERID_COLUMN;
+        private int actionColumn = DEFAULT_ACTION_COLUMN;
+        private int itemIDColumn = DEFAULT_ITEMID_COLUMN;
+        private String action1 = DEFAULT_ACTION_1;
+        private String action2 = DEFAULT_ACTION_2;
+        private String action3 = DEFAULT_ACTION_3;
         private int numberOfRecsPerUser = 10;
-        private String inputDirPath = "";
-        private String outputDirPath = "";
-        private String tempPath = DEFAULT_TEMP_PATH;
-        private String prefsPath = DEFAULT_TEMP_PATH;
-        private Boolean useExternalidFiles;
-        private Boolean doXRecommender;
-        private Boolean doNotSplit;
-        private Boolean keepPurchaseAndAddToCartTogether;
+        private String inputDir;//required
+        private String outputDir = ROOT_RECS_DIR;
+        private String tempDir = DEFAULT_TEMP_DIR;
+        private String prefsDir = DEFAULT_PREFS_DIR;
+        private Boolean doXRecommender = false;
+        private String fileNamePatternString = DEFAULT_FILE_PATTERN;
+        private String indexesDir = DEFAULT_INDEXES_DIR;
+        private String primaryPrefsDir = DEFAULT_PRIMARY_PREFS_PATH;
+        private String secondaryPrefsDir = DEFAULT_SECONDARY_PREFS_PATH;
 
-        RecsDriverOptions() {
-            this.similairtyType = LOG_LIKELIHOOD;
-            this.outputDirPath = ROOT_RECS_DIR;
-            this.tempPath = DEFAULT_TEMP_PATH;
-            this.prefsPath = DEFAULT_TEMP_PATH;
-            this.useExternalidFiles = true;
-            this.doXRecommender = false;
-            this.doNotSplit = false;//default to do the splitting
-            this.keepPurchaseAndAddToCartTogether = false;//split these, merging them will produce higher map scores usually
+        Options() {
         }
 
-
-        public Boolean getKeepPurchaseAndAddToCartTogether() {
-            return keepPurchaseAndAddToCartTogether;
+        public int getTimestampColumn() {
+            return timestampColumn;
         }
 
-        @Option(name = "-keepPurchaseAndAddToCartTogether", usage = "Treat Add-to-Cart exactly as Purchases for training--leads to a higher MAP score (optional). Default: false", required = false)
-        public void setKeepPurchaseAndAddToCartTogether(Boolean keepPurchaseAndAddToCartTogether) {
-            this.keepPurchaseAndAddToCartTogether = keepPurchaseAndAddToCartTogether;
+        //todo: ignored so this is a stub. May wish to order perfs by timestamp before downsampling/truncating history
+        public void setTimestampColumn(int timestampColumn) {
+            this.timestampColumn = timestampColumn;
         }
 
-        public Boolean getDoNotSplit() {
-            return doNotSplit;
+        public int getUserIDColumn() {
+            return userIDColumn;
         }
 
-        @Option(name = "-doNotSplit", usage = "Do not read in externalid files and split them by action type (optional). Default: false so do the splitting.", required = false)
-        public void setDoNotSplit(Boolean doNotSplit) {
-            this.doNotSplit = doNotSplit;
+        @Option(name = "-uidc", aliases = { "--userIDColumn" }, usage = "Which column has the userID (optional). Default: 0", required = false)
+        public void setUserIDColumn(int userIDColumn) {
+            this.userIDColumn = userIDColumn;
+        }
+
+        public int getActionColumn() {
+            return actionColumn;
+        }
+
+        @Option(name = "-ac", aliases = { "--actionColumn" }, usage = "Which column has the action (optional). Default: 1", required = false)
+        public void setActionColumn(int actionColumn) {
+            this.actionColumn = actionColumn;
+        }
+
+        public int getItemIDColumn() {
+            return itemIDColumn;
+        }
+
+        @Option(name = "-iidc", aliases = { "--itemIDColumn" }, usage = "Which column has the itemID (optional). Default: 2", required = false)
+        public void setItemIDColumn(int itemIDColumn) {
+            this.itemIDColumn = itemIDColumn;
+        }
+
+        public String getAction1() {
+            return action1;
+        }
+
+        @Option(name = "-a1", aliases = { "--action1" }, usage = "String respresenting action1, the primary preference action (optional). Default: 'purchase'", required = false)
+        public void setAction1(String action1) {
+            this.action1 = action1;
+        }
+
+        public String getAction2() {
+            return action2;
+        }
+
+        @Option(name = "-a2", aliases = { "--action2" }, usage = "String respresenting action2, the secondary preference action (optional). Default: 'view'", required = false)
+        public void setAction2(String action2) {
+            this.action2 = action2;
+        }
+
+        public String getAction3() {
+            return action3;
+        }
+
+        @Option(name = "-a3", aliases = { "--action3" }, usage = "String respresenting action3, used for splitting only (optional). Default: not used", required = false)
+        public void setAction3(String action3) {
+            this.action3 = action3;
+        }
+
+        public String getPrimaryPrefsDir() {
+            return primaryPrefsDir;
+        }
+
+        public void setPrimaryPrefsDir(String primaryPrefsDir) {
+            this.primaryPrefsDir = primaryPrefsDir;
+        }
+
+        public String getSecondaryPrefsDir() {
+            return secondaryPrefsDir;
+        }
+
+        public void setSecondaryPrefsDir(String secondaryPrefsDir) {
+            this.secondaryPrefsDir = secondaryPrefsDir;
+        }
+
+        public String getIndexesDir() {
+            return indexesDir;
+        }
+
+        @Option(name = "-ix", aliases = { "--indexDir" }, usage = "Where to put user and item indexes (optional). Default: 'id-indexes'", required = false)
+        public void setIndexesDir(String indexesDir) {
+            this.indexesDir = indexesDir;
+        }
+
+        public String getFileNamePatternString() {
+            return fileNamePatternString;
+        }
+
+        @Option(name = "-p", aliases = { "--inputFilePattern" }, usage = "Match this pattern when searching for action log files (optional). Default: '.tsv'", required = false)
+        public void setFileNamePatternString(String fileNamePatternString) {
+            this.fileNamePatternString = fileNamePatternString;
         }
 
         public Boolean getDoXRecommender() {
             return doXRecommender;
         }
 
-        @Option(name = "-xRecommend", usage = "Create cross-recommender for multiple actions (optional). Default: false.", required = false)
+        @Option(name = "-x", aliases = { "--xRecommend" }, usage = "Create cross-recommender for multiple actions (optional). Default: false.", required = false)
         public void setDoXRecommender(Boolean doXRecommender) {
             this.doXRecommender = doXRecommender;
         }
 
         private String getPrimaryRecsPath(){
-            return new Path(getPrimaryOutputDirPath(),ROOT_RECS_DIR).toString();
+            return new Path(getPrimaryOutputDir(),ROOT_RECS_DIR).toString();
         }
 
-        private String getPrimaryActionsPath(){
-            return new Path(new Path(getInputDirPath(),PREFS_ROOT_DIR), CombinedRetailActionFileSplitterJob.ACTION_1_DIR).toString();
+        private String getAllActionsDir(){
+            return new Path(getInputDir(),getPrefsDir()).toString();
         }
 
-        private String getAllActionsPath(){
-            return new Path(getInputDirPath(),PREFS_ROOT_DIR).toString();
+        private String getPrimaryTempDir(){
+            return new Path(getTempDir(),PRIMARY_TEMP_DIR).toString();
         }
 
-        private String getPrimaryTempPath(){
-            return new Path(getTempPath(),PRIMARY_TEMP_DIR).toString();
+        private String getSecondaryTempDir(){
+            return new Path(getTempDir(),SECONDARY_TEMP_DIR).toString();
         }
 
-        private String getSecondaryTempPath(){
-            return new Path(getTempPath(),SECONDARY_TEMP_DIR).toString();
+        public String getPrefsDir() {
+            return prefsDir;
         }
 
-        public String getPrefsPath() {
-            return prefsPath;
+        public void setPrefsPath(String prefsDir) {
+            this.prefsDir = prefsDir;
         }
 
-        public void setPrefsPath(String prefsPath) {
-            this.prefsPath = prefsPath;
+        @Option(name = "-t", aliases = { "--tempDir" }, usage = "Place for intermediate data. Things left after the jobs but erased before starting new ones.", required = false)
+        public void setTempPath(String tempDir) {
+            this.tempDir = tempDir;
         }
 
-        @Option(name = "-tempDir", usage = "Place for intermediate data. Things left after the jobs but erased before starting new ones.", required = false)
-        public void setTempPath(String tempPath) {
-            this.tempPath = tempPath;
+        public String getTempDir() {
+            return this.tempDir;
         }
 
-        public String getTempPath() {
-            return this.tempPath;
+       @Option(name = "-i", aliases = { "--inputDir" }, usage = "Input directory searched recursively for files in 'ExternalID' format where ID are unique strings and preference files contain combined actions with action IDs. Subdirs will be created by action type, so 'purchase', 'view', etc.", required = true)
+        public void setInputDirPath(String primaryInputDir) {
+            this.inputDir = primaryInputDir;
         }
 
-        @Option(name = "-useExternalidFiles", usage = "Use files that have all actions and are called 'externalid.txt'. Treat the input dir as a place to recursively look for these files (optional). Default: true and false probably will not work. The idae is to allow raw Mahout csv files as input.", required = false)
-        public void setUseExternalidFiles(Boolean useExternalidFiles) {
-            this.useExternalidFiles = useExternalidFiles;
+        public String getInputDir() {
+            return this.inputDir;
         }
 
-        public Boolean getUseExternalidFiles() {
-            return useExternalidFiles;
+        @Option(name = "-o", aliases = { "--outputDir" }, usage = "Output directory for recs. There will be two subdirs one for the primary recommender and one for the secondry/cross-recommender each of which will have item similarities and user history recs.", required = true)
+        public void setOutputDir(String outputDir) {
+            this.outputDir = outputDir;
         }
 
-       @Option(name = "-inputDir", usage = "Input directory searched recursively for files in 'ExternalID' format where ID are unique strings and preference files contain combined retail actions with action IDs. Subdirs will be creates split by action type, so 'purchase', 'view', etc.", required = true)
-        public void setInputDirPath(String primaryInputDirPath) {
-            this.inputDirPath = primaryInputDirPath;
+        public String getOutputDir() {
+            return this.outputDir;
         }
 
-        public String getInputDirPath() {
-            return this.inputDirPath;
+        public String getPrimaryOutputDir() {
+            return new Path(this.outputDir, PRIMARY_OUTPUT_DIR).toString();
         }
 
-        @Option(name = "-outputDir", usage = "Output directory for recs. There will be two subdirs one for the primary recommender and one for the secondry/cross-recommender each of which will have item similarities and user history recs.", required = true)
-        public void setOutputDirPath(String outputDirPath) {
-            this.outputDirPath = outputDirPath;
+        public String getSecondaryOutputDir() {
+            return new Path(this.outputDir, SECONDARY_OUTPUT_DIR).toString();
         }
 
-        public String getOutputDirPath() {
-            return this.outputDirPath;
-        }
-
-        public String getPrimaryOutputDirPath() {
-            return new Path(this.outputDirPath, PRIMARY_OUTPUT_PATH).toString();
-        }
-
-        public String getSecondaryOutputDirPath() {
-            return new Path(this.outputDirPath, SECONDARY_OUTPUT_PATH).toString();
-        }
-
-        @Option(name = "-recsPerUser", usage = "Number of recommendations to return for each request. Default = 10. Note: this option is ignored at present since a large number of recs are needed for some forms of blending. See the GetCassandraRecommendations job for limiting the number of recs.", required = false)
+        @Option(name = "-r", aliases = { "--recsPerUser" }, usage = "Number of recommendations to return for each request. Default = 10. Note: this option is ignored at present since a large number of recs are needed for some forms of blending. See the GetCassandraRecommendations job for limiting the number of recs.", required = false)
         public void setNumberOfRecsPerUser(int numberOfRecsPerUser) {
             this.numberOfRecsPerUser = numberOfRecsPerUser;
         }
@@ -335,16 +399,16 @@ public final class RecommenderDriverJob extends AbstractJob {
             return similairtyType;
         }
 
-        @Option(name = "-similarityType", usage = "Similarity measure to use. Default SIMILARITY_LOGLIKELIHOOD. Note: this only applies to the primary recs and secondary item similarities.", required = false)    public void setSimilairtyType(String similairtyType) {
+        @Option(name = "-s", aliases = { "--similarityType" }, usage = "Similarity measure to use. Default SIMILARITY_LOGLIKELIHOOD. Note: this only applies to the primary recs and secondary item similarities.", required = false)    public void setSimilairtyType(String similairtyType) {
             this.similairtyType = similairtyType;
         }
 
         public String getPrimarySimilarityMatrixPath() {
-            return new Path(getPrimaryTempPath(), PRIMARY_SIMILARITY_MATRIX).toString();
+            return new Path(getPrimaryTempDir(), PRIMARY_SIMILARITY_MATRIX).toString();
         }
 
         public String getSecondarySimilarityMatrixPath() {
-            return new Path(getSecondaryOutputDirPath(), ROOT_SIMS_DIR).toString();
+            return new Path(getSecondaryOutputDir(), ROOT_SIMS_DIR).toString();
         }
 
         @Override
