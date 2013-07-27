@@ -74,9 +74,9 @@ public final class PinterestRecommenderDriverJob extends AbstractJob {
                 // this job cleans out the output dir first
                 if(options.getMergePrimaryAndSecondaryActions()){
                     ToolRunner.run(getConf(), new ActionSplitterJob(), new String[]{
-                        "--inputDir", options.getInputDirPath(),
-                        "--outputDir", prefsPath.toString(),
-                        "--indexesDir", indexesPath.toString(),
+                        "--input", options.getInputDirPath(),
+                        "--output", prefsPath.toString(),
+                        "--indexes", indexesPath.toString(),
                         "--mergeAction1AndAction2",
                         "--action1", ACTION_1,
                         "--action2", ACTION_2,
@@ -90,9 +90,9 @@ public final class PinterestRecommenderDriverJob extends AbstractJob {
                     });
                 } else { // keep primary and secondary actions separate
                     ToolRunner.run(getConf(), new ActionSplitterJob(), new String[]{
-                        "--inputDir", options.getInputDirPath(),
-                        "--outputDir", prefsPath.toString(),
-                        "--indexesDir", indexesPath.toString(),
+                        "--input", options.getInputDirPath(),
+                        "--output", prefsPath.toString(),
+                        "--indexes", indexesPath.toString(),
                         "--action1", ACTION_1,
                         "--action2", ACTION_2,
                         "--action3", ACTION_3,

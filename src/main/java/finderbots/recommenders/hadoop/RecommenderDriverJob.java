@@ -77,9 +77,9 @@ public final class RecommenderDriverJob extends AbstractJob {
         // this job cleans out the output dir first
         ActionSplitterJob aj = new ActionSplitterJob();
         ToolRunner.run(getConf(), aj, new String[]{
-            "--inputDir", options.getInputDir(),
-            "--outputDir", prefsPath.toString(),
-            "--indexesDir", indexesPath.toString(),
+            "--input", options.getInputDir(),
+            "--output", prefsPath.toString(),
+            "--indexes", indexesPath.toString(),
             "--inputFilePattern", ".tsv",
         });
 
@@ -89,10 +89,11 @@ public final class RecommenderDriverJob extends AbstractJob {
         // these are single value binary files written with
         // HadoopUtil.writeInt(this.numberOfUsers, getOutputPath(NUM_USERS), getConf());
 
-        options.setInputDirPath(prefFilesRootDir.toString());
+        options.setInputDir(prefFilesRootDir.toString());
 
         //Path action1Prefs = new Path(new Path(getInputDir(),getPrefsDir()), ActionFileSplitterJob.ACTION_1_DIR).toString();
         String action1PrefsPath = new Path(new Path(options.getInputDir(),options.getPrefsDir()), aj.getOptions().getAction1Dir()).toString();
+        String action2PrefsPath = new Path(new Path(options.getInputDir(),options.getPrefsDir()), aj.getOptions().getAction2Dir()).toString();
 
         ToolRunner.run(getConf(), new RecommenderJob(), new String[]{
             "--input", action1PrefsPath,
@@ -107,6 +108,7 @@ public final class RecommenderDriverJob extends AbstractJob {
         moveSimilarityMatrix();
 
         if(options.getDoXRecommender()){
+            //note: similairty class is not used, cooccurrence only for now
             ToolRunner.run(getConf(), new XRecommenderJob(), new String[]{
                 "--input", options.getAllActionsDir(),
                 "--output", options.getSecondaryOutputDir(),
@@ -115,8 +117,8 @@ public final class RecommenderDriverJob extends AbstractJob {
                 "--tempDir", options.getSecondaryTempDir(),
                 "--numUsers", Integer.toString(this.numberOfUsers),
                 "--numItems", Integer.toString(this.numberOfItems),
-                "--primaryPrefs", options.getPrimaryPrefsDir(),
-                "--secondaryPrefs", options.getSecondaryPrefsDir(),
+                "--primaryPrefs", action1PrefsPath,
+                "--secondaryPrefs", action2PrefsPath,
             });
         }
 
@@ -360,8 +362,8 @@ public final class RecommenderDriverJob extends AbstractJob {
             return this.tempDir;
         }
 
-       @Option(name = "-i", aliases = { "--inputDir" }, usage = "Input directory searched recursively for files in 'ExternalID' format where ID are unique strings and preference files contain combined actions with action IDs. Subdirs will be created by action type, so 'purchase', 'view', etc.", required = true)
-        public void setInputDirPath(String primaryInputDir) {
+       @Option(name = "-i", aliases = { "--input" }, usage = "Input directory searched recursively for files in 'ExternalID' format where ID are unique strings and preference files contain combined actions with action IDs. Subdirs will be created by action type, so 'purchase', 'view', etc.", required = true)
+        public void setInputDir(String primaryInputDir) {
             this.inputDir = primaryInputDir;
         }
 
@@ -369,7 +371,7 @@ public final class RecommenderDriverJob extends AbstractJob {
             return this.inputDir;
         }
 
-        @Option(name = "-o", aliases = { "--outputDir" }, usage = "Output directory for recs. There will be two subdirs one for the primary recommender and one for the secondry/cross-recommender each of which will have item similarities and user history recs.", required = true)
+        @Option(name = "-o", aliases = { "--output" }, usage = "Output directory for recs. There will be two subdirs one for the primary recommender and one for the secondry/cross-recommender each of which will have item similarities and user history recs.", required = true)
         public void setOutputDir(String outputDir) {
             this.outputDir = outputDir;
         }

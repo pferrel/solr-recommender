@@ -217,15 +217,15 @@ public class ActionSplitterJob extends AbstractJob {
 
         // split into actions and store in subdirs
         // create indexes for users and items
-        Path inputPath = new Path(options.getInputDirPath());
+        Path inputPath = new Path(options.getInputDir());
         FileSystem fs = inputPath.getFileSystem(new JobConf());
-        Path outputPath = new Path(options.getOutputDirPath());
+        Path outputPath = new Path(options.getOutputDir());
         // todo: can put this into m/r if it helps speed up
         split(inputPath, outputPath);// split into actions and store in subdirs
 
-        Path indexesPath = new Path(options.getIndexDirPath());
-        Path userIndexPath = new Path(options.getIndexDirPath(), options.getUserIndexFile());
-        Path itemIndexPath = new Path(options.getIndexDirPath(), options.getItemIndexFile());
+        Path indexesPath = new Path(options.getIndexDir());
+        Path userIndexPath = new Path(options.getIndexDir(), options.getUserIndexFile());
+        Path itemIndexPath = new Path(options.getIndexDir(), options.getItemIndexFile());
         if (fs.exists(userIndexPath)) fs.delete(userIndexPath, false);//delete file only!
         if (fs.exists(itemIndexPath)) fs.delete(itemIndexPath, false);//delete file only!
         // get the size of the matrixes and put them where the calling job
@@ -324,13 +324,13 @@ public class ActionSplitterJob extends AbstractJob {
         private String tempPath = DEFAULT_TEMP_PATH;
 
         //optional or derived from required options
-        private String indexDirPath = DEFAULT_INDEX_DIR_PATH;
+        private String indexDir = DEFAULT_INDEX_DIR_PATH;
         private String itemIndexFile = DEFAULT_ITEM_INDEX_FILE;
         private String userIndexFile = DEFAULT_USER_INDEX_FILE;
 
         // required options
-        private String inputDirPath;
-        private String outputDirPath;
+        private String inputDir;
+        private String outputDir;
 
         Options() {
             //setup default values before processing args
@@ -338,10 +338,10 @@ public class ActionSplitterJob extends AbstractJob {
             this.action1File = this.action1Dir + getTextFileExtension();
             this.action2Dir = toDirName(DEFAULT_ACTION_2);
             this.action2File = this.action2Dir + getTextFileExtension();
-           this.action3Dir = toDirName(DEFAULT_ACTION_3);
-           this.action3File = this.action3Dir + getTextFileExtension();
-           this.actionOtherDir = toDirName(DEFAULT_ACTION_OTHER);
-           this.actionOtherFile = this.actionOtherFile + getTextFileExtension();
+            this.action3Dir = toDirName(DEFAULT_ACTION_3);
+            this.action3File = this.action3Dir + getTextFileExtension();
+            this.actionOtherDir = toDirName(DEFAULT_ACTION_OTHER);
+            this.actionOtherFile = this.actionOtherFile + getTextFileExtension();
         }
 
 
@@ -444,33 +444,33 @@ public class ActionSplitterJob extends AbstractJob {
             this.outputDelimiter = outputDelimiter;
         }
 
-        public String getIndexDirPath() {
-            return indexDirPath;
+        public String getIndexDir() {
+            return indexDir;
         }
 
-        @Option(name = "--indexesDir", usage = "Place for external to internal item and user ID indexes. This directory will be deleted before the indexes are written. Optional: defualt = output-dir/id-indexes", required = false)
-        public Options setIndexDirPath(String indexDirPath) {
-            this.indexDirPath = indexDirPath;
+        @Option(name = "--indexes", usage = "Place for external to internal item and user ID indexes. This directory will be deleted before the indexes are written. Optional: defualt = output-dir/id-indexes", required = false)
+        public Options setIndexDir(String indexDir) {
+            this.indexDir = indexDir;
             return this;
         }
 
-        public String getInputDirPath() {
-            return this.inputDirPath;
+        public String getInputDir() {
+            return this.inputDir;
         }
 
-        @Option(name = "--inputDir", usage = "Dir that will be searched recursively for files that have mixed actions. These will be split into the output dir.", required = true)
-        public Options setInputDirPath(String primaryInputDirPath) {
-            this.inputDirPath = primaryInputDirPath;
+        @Option(name = "--input", usage = "Dir that will be searched recursively for files that have mixed actions. These will be split into the output dir.", required = true)
+        public Options setInputDir(String primaryInputDir) {
+            this.inputDir = primaryInputDir;
             return this;
         }
 
-        public String getOutputDirPath() {
-            return this.outputDirPath;
+        public String getOutputDir() {
+            return this.outputDir;
         }
 
-        @Option(name = "--outputDir", usage = "Output directory for recs.", required = true)
-        public Options setOutputDirPath(String outputDirPath) {
-            this.outputDirPath = outputDirPath;
+        @Option(name = "--output", usage = "Output directory for recs.", required = true)
+        public Options setOutputDir(String outputDirPath) {
+            this.outputDir = outputDir;
             return this;
         }
 
