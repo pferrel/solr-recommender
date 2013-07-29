@@ -58,23 +58,14 @@ public class ActionSplitterJob extends AbstractJob {
         FileSystem fs = baseInputDir.getFileSystem(getConf());
         Path action1DirPath = new Path(baseOutputDir, options.getAction1Dir());
         Path action2DirPath = new Path(baseOutputDir, options.getAction2Dir());
-        Path action3DirPath = new Path(baseOutputDir, options.getAction3Dir());
         Path actionOtherDirPath = new Path(baseOutputDir, options.getActionOtherDir());
         Path action1FilePath = new Path(action1DirPath, options.getAction1File());
         Path action2FilePath = new Path(action2DirPath, options.getAction2File());
-        Path action3FilePath = new Path(action3DirPath, options.getAction3File());
         Path actionOtherFilePath = new Path(actionOtherDirPath, options.getActionOtherFile());
         FSDataOutputStream action1File;
         FSDataOutputStream action2File;
-        FSDataOutputStream action3File;
         FSDataOutputStream actionOtherFile;
 
-        //Eval output in case we use them for MAP
-        //1357152044224	some-user-id-string	action-string	item-id-string
-        //the eval files are written using external IDs so they can be used as queries
-        //for an offline evaluator. Other split files are written using Mahout internal IDs (ints)
-        FSDataOutputStream evalAction1File;//primary action with external ids, used for eval precision calc
-        FSDataOutputStream evalAction3File;//primary action with external ids, used for queries in eval
         if (!fs.exists(baseOutputDir)) {
             LOGGER.info("Preference output dir:"+baseOutputDir.toString()+" does not exist. creating it.");
             fs.mkdirs(baseOutputDir);
@@ -82,17 +73,14 @@ public class ActionSplitterJob extends AbstractJob {
 
         if(fs.exists(action1DirPath)) fs.delete(action1DirPath, true);
         if(fs.exists(action2DirPath)) fs.delete(action2DirPath, true);
-        if(fs.exists(action3DirPath)) fs.delete(action3DirPath, true);
         if(fs.exists(actionOtherDirPath)) fs.delete(actionOtherDirPath, true);
 
         // cleaned out prefs if they existed, now create a place to put the new ones
         fs.mkdirs(action1DirPath);
         fs.mkdirs(action2DirPath);
-        fs.mkdirs(action3DirPath);
         fs.mkdirs(actionOtherDirPath);
         action1File = fs.create(action1FilePath);
         action2File = fs.create(action2FilePath);
-        action3File = fs.create(action3FilePath);
         actionOtherFile = fs.create(actionOtherFilePath);
 
         List<FSDataInputStream> actionFiles = getActionFiles(baseInputDir);
@@ -104,7 +92,9 @@ public class ActionSplitterJob extends AbstractJob {
             String actionLogLine;
             while ((actionLogLine = bin.readLine()) != null) {//get user to make a rec for
                 String[] columns = actionLogLine.split(options.getInputDelimiter());
-                String timestamp = columns[options.getTimestampColumn()].trim();
+                if(options.getTimestampColumn() != -1) { // ignoring for now but may be useful
+                    String timestamp = columns[options.getTimestampColumn()].trim();
+                }
                 String externalUserIDString = columns[options.getUserIdColumn()].trim();
                 String externalItemIDString = columns[options.getItemIdColumn()].trim();
                 String actionString = columns[options.getActionColumn()].trim();
@@ -112,15 +102,15 @@ public class ActionSplitterJob extends AbstractJob {
                 // create a bi-directional index of enternal->internal ids
                 String internalUserID;
                 String internalItemID;
-                if (this.userIndex.containsKey(externalUserIDString)) {// already in the index
+                if (this.userIndex.containsKey(externalUserIDString)) {// already in the user index
                     internalUserID = this.userIndex.get(externalUserIDString);
                 } else {
                     internalUserID = uniqueUserIDCounter.toString();
                     this.userIndex.forcePut(externalUserIDString, internalUserID);
                     uniqueUserIDCounter += 1;
-                    if(uniqueUserIDCounter % 10000 == 0) LOGGER.debug("Splitter processed: "+Integer.toString(uniqueUserIDCounter)+" unique users.");
+                    if(uniqueUserIDCounter % 10000 == 0) LOGGER.debug("Splitter processed: " + Integer.toString(uniqueUserIDCounter) + " unique users.");
                 }
-                if (this.itemIndex.containsKey(externalItemIDString)) {// already in the index
+                if (this.itemIndex.containsKey(externalItemIDString)) {// already in the item index
                     internalItemID = this.itemIndex.get(externalItemIDString);
                 } else {
                     internalItemID = uniqueItemIDCounter.toString();
@@ -130,20 +120,16 @@ public class ActionSplitterJob extends AbstractJob {
                 if(actionString.equals(options.getAction1())){
                     action1File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
                 } else if(actionString.equals(options.getAction2())){
-                     action2File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
-                } else if(actionString.equals(options.getAction3())){
-                    action3File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
+                    action2File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
                 } else {
                     actionOtherFile.writeBytes(actionLogLine);//write what's not recognized
-                    break;
                 }
             }
         }
         action1File.close();
         action2File.close();
-        action3File.close();
         actionOtherFile.close();
-        int i = 0;
+        int i = 0;//breakpoint after close to inspect files
     }
 
     public void saveIndexes(Path where) throws IOException {
@@ -186,11 +172,13 @@ public class ActionSplitterJob extends AbstractJob {
             for (FileStatus fstat : stats) {
                 if(fstat.isDir()){
                     files.addAll(getActionFiles(fstat.getPath()));
-                } else //todo: this should look for a file name or pattern, not only a hadoop part-xxxx file
-                    if(
-                        (fstat.getPath().getName().contains("art-") && !fstat.isDir()) ||
-                        (!fstat.getPath().getName().startsWith("_") && !fstat.getPath().getName().startsWith("."))
-                    ){
+                //todo: this should be done with a regex
+                } else if(
+                        fstat.getPath().getName().contains(options.getInputFilePattern())
+                            && !fstat.isDir()
+                            && !fstat.getPath().getName().startsWith("_")
+                            && !fstat.getPath().getName().startsWith(".")
+                        ){
                     files.add(fs.open(fstat.getPath()));
                 }
             }
@@ -265,10 +253,6 @@ public class ActionSplitterJob extends AbstractJob {
         return options.getAction2Dir();
     }
 
-    public static String getAction3Dir(){
-        return options.getAction3Dir();
-    }
-
     public ActionSplitterJob.Options getOptions(){
         return options;
     }
@@ -281,17 +265,15 @@ public class ActionSplitterJob extends AbstractJob {
     public class Options {
         //action 1 derived
         private static final String DEFAULT_ACTION_1 = "purchase";
-        private static final String DEFAULT_ACTION_2 = "add-to-cart";
-        private static final String DEFAULT_ACTION_3 = "view";
+        private static final String DEFAULT_ACTION_2 = "view";
         private static final String DEFAULT_ACTION_OTHER = "other";
 
-        private static final String DEFAULT_ACTION_EVAL_DIR = "eval";
         private static final String DEFAULT_NUM_USERS_FILE = "num-users.bin";
         private static final String DEFAULT_NUM_ITEMS_FILE = "num-items.bin";
-        private static final int DEFAULT_TIMESTAMP_COLUMN = 0;
-        private static final int DEFAULT_ITEM_ID_COLUMN = 1;
-        private static final int DEFAULT_ACTION_COLUMN = 2;
-        private static final int DEFAULT_USER_ID_COLUMN = 4;
+        private static final int DEFAULT_TIMESTAMP_COLUMN = -1;
+        private static final int DEFAULT_ITEM_ID_COLUMN = 2;
+        private static final int DEFAULT_ACTION_COLUMN = 1;
+        private static final int DEFAULT_USER_ID_COLUMN = 0;
         private static final String TSV_DELIMETER = "\t";
         private static final String CSV_DELIMETER = ",";
         private static final String DEFAULT_INPUT_DELIMITER = TSV_DELIMETER;
@@ -300,18 +282,16 @@ public class ActionSplitterJob extends AbstractJob {
         private static final String DEFAULT_USER_INDEX_FILE = "user-index";
         private static final String DEFAULT_ITEM_INDEX_FILE = "item-index";
         private static final String DEFAULT_TEMP_PATH = "tmp";
+        private static final String DEFAULT_INPUT_FILE_PATTERN = "part";//default is a hadoop created part-xxxx file
 
         // these could be options if the defaults are not enough
         private String action1 = DEFAULT_ACTION_1;
         private String action2 = DEFAULT_ACTION_2;
-        private String action3 = DEFAULT_ACTION_3;
         private String action1Dir;
         private String action2Dir;
-        private String action3Dir;
         private String actionOtherDir;
         private String action1File;
         private String action2File;
-        private String action3File;
         private String actionOtherFile;
         private String numUsersFile = DEFAULT_NUM_USERS_FILE;
         private String numItemsFile = DEFAULT_NUM_ITEMS_FILE;
@@ -322,6 +302,7 @@ public class ActionSplitterJob extends AbstractJob {
         private String inputDelimiter = DEFAULT_INPUT_DELIMITER;
         private String outputDelimiter = DEFAULT_OUTPUT_DELIMITER;
         private String tempPath = DEFAULT_TEMP_PATH;
+        private String inputFilePattern = DEFAULT_INPUT_FILE_PATTERN;
 
         //optional or derived from required options
         private String indexDir = DEFAULT_INDEX_DIR_PATH;
@@ -338,8 +319,6 @@ public class ActionSplitterJob extends AbstractJob {
             this.action1File = this.action1Dir + getTextFileExtension();
             this.action2Dir = toDirName(DEFAULT_ACTION_2);
             this.action2File = this.action2Dir + getTextFileExtension();
-            this.action3Dir = toDirName(DEFAULT_ACTION_3);
-            this.action3File = this.action3Dir + getTextFileExtension();
             this.actionOtherDir = toDirName(DEFAULT_ACTION_OTHER);
             this.actionOtherFile = this.actionOtherFile + getTextFileExtension();
         }
@@ -355,6 +334,15 @@ public class ActionSplitterJob extends AbstractJob {
 
         private String getTextFileExtension(){
             return getOutputDelimiter().equals(CSV_DELIMETER) ? ".csv" : ".tsv";
+        }
+
+        public String getInputFilePattern() {
+           return inputFilePattern;
+        }
+
+        @Option(name = "-ifp", aliases = { "--inputFilePattern" }, usage = "Search --input recusively for files with this string included in their name. Optional: default = 'part'", required = false)
+        public void setInputFilePattern(String inputFilePattern) {
+           this.inputFilePattern = inputFilePattern;
         }
 
         @Option(name = "--action1", usage = "String to id primary action. Optional: default = 'purchase'", required = false)
@@ -374,18 +362,6 @@ public class ActionSplitterJob extends AbstractJob {
             this.action2 = action2;
             this.action2Dir = toDirName(action2);
             this.action2File = this.action2Dir + getTextFileExtension();
-            return this;
-        }
-
-        public String getAction3() {
-            return action3;
-        }
-
-        @Option(name = "--action3", usage = "String to id tertiary action. Optional: default = 'view'", required = false)
-        public Options setAction3(String action3) {
-            this.action3 = action3;
-            this.action3Dir = toDirName(action3);
-            this.action3File = this.action3Dir + getTextFileExtension();
             return this;
         }
 
@@ -469,7 +445,7 @@ public class ActionSplitterJob extends AbstractJob {
         }
 
         @Option(name = "--output", usage = "Output directory for recs.", required = true)
-        public Options setOutputDir(String outputDirPath) {
+        public Options setOutputDir(String outputDir) {
             this.outputDir = outputDir;
             return this;
         }
@@ -491,10 +467,6 @@ public class ActionSplitterJob extends AbstractJob {
             return action2Dir;
         }
 
-        public String getAction3Dir() {
-            return action3Dir;
-        }
-
         public String getActionOtherDir() {
             return actionOtherDir;
         }
@@ -505,10 +477,6 @@ public class ActionSplitterJob extends AbstractJob {
 
         public String getAction2File() {
             return action2File;
-        }
-
-        public String getAction3File() {
-            return action3File;
         }
 
         public String getActionOtherFile() {

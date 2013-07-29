@@ -154,9 +154,9 @@ public final class XRecommenderJob extends AbstractJob {
             "--primaryPrefs", getOption("primaryPrefs"),
             "--secondaryPrefs", getOption("secondaryPrefs"),
         });
+        //after this job A' is in a DRM at matrixATransposePath B' is at matrixBTransposePath--nach
 
         // calculate the co-occurrence matrix [B'A]
-        // matrix A is in
 
         // since the matrices were ingested and stored transposed we need to transpose again, just so the
         // multiply can transpose yet again - argh!
@@ -168,7 +168,7 @@ public final class XRecommenderJob extends AbstractJob {
         });
         Path matrixBPath = findMostRecentPath(prepPath, "transpose");
 
-        // now get [A] from the ingested transposed version
+        // now get A from the ingested transposed version
         ToolRunner.run(getConf(), new TransposeJob(), new String[]{
             "--input", matrixATransposePath.toString(),
             "--numRows", Integer.toString(numberOfUsers),
@@ -191,15 +191,15 @@ public final class XRecommenderJob extends AbstractJob {
             // "--outputPath", getTempPath(CO_OCCURRENCE_MATRIX).toString(),
             "--tempDir", tempPath.toString(),
         });
-        //todo: output was put in tmp/productWith-168, really one directory up from the temp passed in?
+        //todo: output was put in tmp/productWith-xx, one directory up from the temp passed in, 2 up from the input matrixes, check why.
         Path beforeCooccurrenceMatrixPath = findMostRecentPath(tempPath.getParent(), "product");
         Path cooccurrenceMatrixPath = new Path(tempPath, beforeCooccurrenceMatrixPath.getName());
         fs.rename(beforeCooccurrenceMatrixPath, cooccurrenceMatrixPath);
 
         // now [B'A] will be transposed before the multiply so we need to transpose twice?
         // calculating [B'A]H_v by first transposing the [B'A] then creating the multiply job but
-        // H_v is A' (view history vectors are column vectors) so we have to transpose both [B'A] and A
-        // since the multiply with transpose the first matrix (not sure why but it does).
+        // H_v is A' (a users view history vectors are column vectors) so we have to transpose both [B'A] and A
+        // since the multiply will automatically transpose the first matrix (not sure why but it does).
 
         ToolRunner.run(getConf(), new TransposeJob(), new String[]{
             "--input", cooccurrenceMatrixPath.toString(),
@@ -207,7 +207,6 @@ public final class XRecommenderJob extends AbstractJob {
             "--numCols", Integer.toString(numberOfItems),
             "--tempDir", tempPath.toString(),
         });
-        //"--input", getTempPath(CO_OCCURRENCE_MATRIX).toString(),
 
         Path transposedBTransposeAMatrixPath = findMostRecentPath(tempPath, "transpose");
 
@@ -221,12 +220,12 @@ public final class XRecommenderJob extends AbstractJob {
             "--numColsB", Integer.toString(numberOfUsers),
             "--tempDir", tempPath.toString(),
         });
-        //"--outputPath", getOutputPath(RECS_MATRIX_PATH).toString(),
 
         Path recsMatrixPath = findMostRecentPath(tempPath, "product");
 
-        // co-occurrence matrix already transposed into rows = v-items for item similairty
-        // in transposedBTransposeAMatrixPath so calc similar items from it
+        // co-occurrence matrix already transposed into rows = the action2 items for item similairty
+        // in transposedBTransposeAMatrixPath so calc similar items from it by comparing each row pairwise?
+        // not sure if this is correct since it's comparing the cooccurrence item vectors not the action matrix item vectors
         Path similarItemsPath = new Path(outputPath, XRecommenderJob.SIMS_MATRIX_PATH);
         ToolRunner.run(getConf(), new RowSimilarityJob(), new String[]{
             "--input", transposedBTransposeAMatrixPath.toString(),
