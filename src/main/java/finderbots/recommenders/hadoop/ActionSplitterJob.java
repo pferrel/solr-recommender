@@ -48,7 +48,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * <p>Recursively searches a directory tree for file that contain the string passed in with options. These files may be in HDFS and may be written to HDFS. They are expected to contain tab or comma separated values whose columns have userID, action, and itemID strings. The file will be split into output files one per action desired. Unrecognized output will be put in an 'other' directory. The split files are of the form to be fed to recommender training jobs.
+ * <p>Recursively searches a directory tree for files that contain the string passed in with options. These files may be in HDFS and may be written to HDFS. They are expected to contain tab or comma separated values whose columns have userID, action, and itemID strings. The file will be split into output files one per action desired. Unrecognized output will be put in an 'other' directory. The split files are of the form to be fed to recommender training jobs.
  * <p/>
  * <p>This job creates a single item and user ID space by accumulating all IDs into two BiMaps. The
  * BiMaps are written out to index files for later lookup. This job

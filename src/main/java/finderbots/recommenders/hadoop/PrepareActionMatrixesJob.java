@@ -25,7 +25,7 @@ import java.util.Map;
 
 /**
  * User: pat
- * Date: 4/5/13
+ * Date: 7/5/13
  * Time: 8:18 AM
  *
  * <p>This job will take an input dir with text files that contain one preference per line
@@ -36,20 +36,6 @@ import java.util.Map;
  *
  * <p>NOTE: These internal IDs are used everywhere in this job chain to id users and items. The
  * size of the space defined by these is very important and must be maintained.
- * <p/>
- * <p>This will take a root output dir and expect the following layout. It assumes
- * that the input has internal ids that Mahout can use and that the largest dimension of either
- * matrix defines the space. So if matrix B has the most users, it is the actual number of users
- * and the same for items. It further assumes the files are in Mahout format so no timestamp and
- * no action id.
- * <p/>
- * <p>inpur-dir
- * <p>|_ primary-action/primary-action-tsv-files of the internal mahout format<p/>
- * <p>\_ secondary-action/secondary-action-tsv-files<p/>
- * <p/>
- * <p>output-dir<p/>
- * <p>|_ primary-pref-matrix<p/>
- * <p>\_ secondary-pref-matrix
  * <p/>
  */
 

@@ -2,7 +2,7 @@ package finderbots.recommenders.hadoop;
 
 /**
  * User: pat
- * Date: 4/4/13
+ * Date: 7/4/13
  * Time: 3:25 PM
  */
 
@@ -158,6 +158,7 @@ public final class XRecommenderJob extends AbstractJob {
 
 
         // this actually does a matrixB.transpose.times(matrixA)
+        Path cooccurrenceMatrixPath = getTempPath(CO_OCCURRENCE_MATRIX);
 
         ToolRunner.run(getConf(), new MatrixMultiplicationJob(), new String[]{
             "--numRowsA", Integer.toString(numberOfUsers),
@@ -167,13 +168,9 @@ public final class XRecommenderJob extends AbstractJob {
             "--inputPathA", matrixBPath.toString(),
             "--inputPathB", matrixAPath.toString(),
             // huh, no option of this name???? todo: do we have to find it after the mult?
-            // "--outputPath", getTempPath(CO_OCCURRENCE_MATRIX).toString(),
+            "--outputPath", cooccurrenceMatrixPath.toString(),
             "--tempDir", tempPath.toString(),
         });
-        //todo: output was put in tmp/productWith-xx, one directory up from the temp passed in, 2 up from the input matrixes, check why.
-        Path beforeCooccurrenceMatrixPath = findMostRecentPath(tempPath.getParent(), "product");
-        Path cooccurrenceMatrixPath = new Path(tempPath, beforeCooccurrenceMatrixPath.getName());
-        fs.rename(beforeCooccurrenceMatrixPath, cooccurrenceMatrixPath);
 
         // now [B'A] will be transposed before the multiply so we need to transpose twice?
         // calculating [B'A]H_v by first transposing the [B'A] then creating the multiply job but
@@ -207,33 +204,19 @@ public final class XRecommenderJob extends AbstractJob {
         // not sure if this is correct since it's comparing the cooccurrence item vectors not the action matrix item vectors
         Path similarItemsPath = new Path(outputPath, XRecommenderJob.SIMS_MATRIX_DIR);
 
-        //todo: This isn't needed since the cooccurrence matrix IS the similairty matrix, just move it to output location
-        //but may need to transpose it so columns represent the correct items for
+        /* todo: this may need to be transposed so rows represent the correct items
         ToolRunner.run(getConf(), new TransposeJob(), new String[]{
             "--input", cooccurrenceMatrixPath.toString(),
             "--numRows", Integer.toString(numberOfUsers),
             "--numCols", Integer.toString(numberOfItems),
             "--tempDir", tempPath.toString(),
         });
-
-        Path from = findMostRecentPath(tempPath, "transpose");
-        fs.rename(from, new Path(similarItemsPath.toString()));
-
-        /*ToolRunner.run(getConf(), new RowSimilarityJob(), new String[]{
-            "--input", transposedBTransposeAMatrixPath.toString(),
-            "--output", similarItemsPath.toString(),
-            "--numberOfColumns", String.valueOf(numberOfUsers),
-            "--similarityClassname", similarityClassname,
-            "--maxSimilaritiesPerRow", String.valueOf(maxSimilaritiesPerItem),
-            "--excludeSelfSimilarity", String.valueOf(Boolean.TRUE),
-            "--threshold", String.valueOf(threshold),
-            "--tempDir", tempPath.toString(),
-        });
         */
-
-        // todo: now move the recommendations matrixes to the output path
-        //move recsMatrixPath to new Path( options.get        Path from = new Path(options.getPrimarySimilarityMatrixPath());
-        Path outputRecsPath = new Path(getOption("output"), RECS_MATRIX_DIR);//steal the path for Xrec though created by regular recommender
+        
+        // move [B'A] to the final output location
+        fs.rename(cooccurrenceMatrixPath, new Path(similarItemsPath.toString()));
+        // now move the recommendations matrix to the output path
+        Path outputRecsPath = new Path(getOption("output"), RECS_MATRIX_DIR);
         fs.rename(recsMatrixPath, outputRecsPath);
 
         return 0;

@@ -131,8 +131,6 @@ Runs a distributed recommender and cross-recommender job as a series of mapreduc
 ```
 The job can either pre-calculate all recs and similarities for all users and items OR it can output the similairty matrix to Solr for use as an online recommender. In this later case [B'B] and optionally [B'A] can be written so Solr. Then a user's history, as a string of item IDs, can be used as a query to return recommended items. If a specific item ID's document is fetched it will contain an ordered list of similar items.
 
-Preferences in the input file should look like userID, action, itemID, with any other columns interspersed (and ignored).
-
 ## TBD
 
 Happy path works, creating the two similarity matrixes for moving to Solr, but many other options are not yet supported or tested.
