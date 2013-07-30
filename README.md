@@ -79,15 +79,54 @@ This main task fires off all the subtasks each of which is a separate CLI access
 pat:solr-recommender pat$ hadoop jar target/recommenders-0.1-SNAPSHOT-job.jar finderbots.hadoop.RecommenderDriverJob
 list of job CLI options
 ```
+
+## RecommenderDriverJob Output
+
+The job takes a directory, which is searched recursively for files matching the pattern passed in (only substring match for now). The output will be a preference file per action type, a similairty matrix (two if doing --xrecommend), pre-calculated recs (also cross-recs if doing --xrecommend). The output is structured:
+```
+output
+  |-- id-indexes
+  |     |-- item-index serialized BiHashMap of items for all actions and users, externalIDString <-> internalIDInt
+  |     |-- user-index serialized BiHashMap of users for all actions and items, externalIDString <-> internalIDInt
+  |     |-- num-items.bin total number of items for all actions
+  |     \-- num-users.bin total number of users for all actions
+  |-- prefs
+  |     |-- 'action1'
+  |     |     \-- 'action1.[tsv|csv]' contains preferences from action1 with Mahout IDs = ints. These IDs
+  |     |         are indexes into the ID BiMap index. They will return the string used as item or
+  |     |         user ID from the original logs files. The file is input to the Mahout RecommenderJob.
+  |     |-- 'action2'
+  |     |      \-- 'action1.[tsv|csv]' contains preferences from action1 with Mahout IDs = ints. These IDs
+  |     |         are indexes into the ID BiMap index. They will return the string used as item or
+  |     |         user ID from the original logs files. The file is input to the  XRecommenderJob.
+  |     \-- other
+  |            \-- other.[tsv|csv] contains preferences from actions other than action1 or action2
+  |-- p-recs
+  |     |-- recs
+  |     |     \-- part-xxxx sequence files containing Key = org.apache.mahout.math.VarLongWritable, Value = org.apache.mahout.cf.taste.hadoop.RecommendedItemsWritable. Key = userID, Value a weighted set of ItemIDs
+  |     \-- sims
+  |           \-- part-xxxx sequence files making up a DistributedRowMatrix of Key = org.apache.hadoop.io.IntWritable, Value = org.apache.mahout.math.VectorWritable.
+  |     |         This is the item similarity matrix, Key = itemID, Value a weighted set of ItemIDs
+  |     |         indicating strength of similairty.
+  \-- s-recs
+        |-- recs
+        |     \-- part-xxxx sequence files making up a DistributedRowMatrix of Key = org.apache.hadoop.io.IntWritable, Value = org.apache.mahout.math.VectorWritable
+        |         This is the user recommendation matrix, Key = itemID, Value a weighted set of ItemIDs
+        |         indicating strength of similairty.
+        \-- sims
+              \-- part-xxxx sequence files making up a DistributedRowMatrix of Key = org.apache.hadoop.io.IntWritable, Value = org.apache.mahout.math.VectorWritable
+                  This is the item cross-similarity matrix, Key = itemID, Value a weighted set of ItemIDs
+                  indicating strength of similairty.
+```
 ## Theory
 
 Runs a distributed recommender and cross-recommender job as a series of mapreduces. The concept behind this is based on the fact that when preferences are taken from user actions, it is often useful to use one action for recommendation but the other will also work if the secondary action co-occurs with the first. For example views are predictive of purchases if the viewed item was indeed purchased.
 ```
  A = matrix of action2 by user, used only in the cross-recommender
  B = matrix of action1 by user, these are the primary recommenders actions
- [B'B]H<sub>p</sub> = R<sub>p</sub>, recommendations from purchase actions with strengths
- [B'A]H_v = R_v, recommendations from view actions (where there was a purchase) with strengths
- R_p + R_v = R, assuming a non-weighted linear combination
+ [B'B]H_p = R_p, recommendations from action1
+ [B'A]H_v = R_v, recommendations from action2 (where there was also an action1)
+ R_p + R_v = R, assumes a non-weighted linear combination, ideally they are weighted to optimize results.
 ```
 The job can either pre-calculate all recs and similarities for all users and items OR it can output the similairty matrix to Solr for use as an online recommender. In this later case [B'B] and optionally [B'A] can be written so Solr. Then a user's history, as a string of item IDs, can be used as a query to return recommended items. If a specific item ID's document is fetched it will contain an ordered list of similar items.
 
@@ -95,8 +134,9 @@ Preferences in the input file should look like userID, action, itemID, with any 
 
 ## TBD
 
-1. not all options are passed through the driver job to the recommender and xrecommender. These need to be checked.
-2. not all options that need to be passed to the various jobs are forwarded to them, for instance recommendations and preferences per user are not forwarded, these need to be checked for completeness.
-2. Solr is not integrated yet.
-3. log files are of default config in the resources so other formats need to be tested.
-4. the only test is to hand run and check by eyeball the bash script, this should be a junit test with output verification.
+Happy path works, creating the two similarity matrixes for moving to Solr, but many other options are not yet supported or tested.
+
+1. Solr is not integrated yet.
+2. not all options are accepted by the main driver nor are they forwarded to the sub jobs properly. These need to be checked.
+3. input log files are of default config in the resources so other formats need to be tested.
+4. the only test is to hand run and check by eyeball using the supplied the bash script, this should be a unit test with output verification.
