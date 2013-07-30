@@ -63,11 +63,12 @@ Prints the following:
 ```
 ## Task Pipeline
 
-There are sub jobs launched by some of these tasks but that detail aside there are three main tasks to run in order.
+The RecommenderDriverJob runs various subjobs, some of which can be run separately. This job will performs the following tasks:
   1. Ingest text logfiles splitting into DistributedRowMatix(es) one per action
-  2. Write out BiMaps that translate External string item and user IDs to and from Internal Mahout Long IDs.
-  3. Calculate [B'B] with LLR using Mahout jobs to get the item-item 'similarity matrix' and write these to Solr for indexing.
-  4. Calculate [A'B] using Mahout transpose and matrix multiply to get the 'cross-similarity matrix', write these to Solr for indexing
+  2. Write out BiMaps that translate External string item and user IDs to and from Internal Mahout long IDs.
+  3. Calculate [B'B] with LLR using the Mahout Item-based Recommender job to get the item-item 'similarity matrix' and write these to Solr for indexing.
+  4. Calculate [A'B] using Mahout transpose and matrix multiply jobs to get the 'cross-similarity matrix', write these to Solr for indexing
+  4.5  Calculates all recommendations and cross-recommendations for all users using the mapreduce version of the Mahout Recommender and XRecommender. For use of Solr these are optional but may be useful to compare to Solr results.
   5. Solr indexes the various fields and is ready to return raw recommendations.
   6. Queries, consisting of user history vectors of itemIDs are fed to Solr. If the primary action is being used for recommendations, the primary action field of the index is queried. If both primary (recommendations) and secondary (cross-recommendations) are desired both fields are queried. If item similarity is required, the doc associated with an item ID is returned indicating similar items. This document field will be ordered by the rank of similarity that any item has with the doc item.
   7. Solr returns a ranked list of items.
