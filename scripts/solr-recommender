@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -e #exit on any error return
+
+if [ "$1" == "" ] ; then
+   echo "No input spcified so using sample preference data"
+   INPUT="../src/test/resources/logged-preferences"
+else
+   INPUT=$1
+fi
+
+echo "Getting pref data from: "$INPUT
+
+if [ "$2" == "" ] ; then
+   echo "No output specified so using ../tmp as temp and ../out for output"
+   echo "everything in both directories will be cleared and overwritten"
+   TEMP="../tmp"
+   OUT="../out"
+else
+   TEMP=$2"/tmp"
+   OUT=$2"/out"
+fi
+
+echo "Writing recommendations to: "$OUT
+
+hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar \
+    finderbots.recommenders.hadoop.RecommenderDriverJob  \
+ 	--input $INPUT \
+ 	--inputFilePattern ".tsv" \
+ 	--output $OUT \
+ 	--tempDir $TEMP \
+ 	--xRecommend
