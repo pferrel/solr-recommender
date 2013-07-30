@@ -28,23 +28,14 @@ import java.util.Map;
  * Date: 4/5/13
  * Time: 8:18 AM
  *
- * <p>This job will take an input dir, and recursively look for text files that contain action logs
- * it will build DistributedRowMatix (es) for each action type found. The files are expected to be
+ * <p>This job will take an input dir with text files that contain one preference per line
+ * it will build a DistributedRowMatix (es) for two action types. The files are expected to be
  * tsv or csv of the form:<p/>
- * <p>timestamp userID actionType itemID
+ * <p>timestamp userID itemID
  * <p/>
- * <p>All are strings except the timestamp, which is ignored. The order is defined by options and any
- * extra columns are ignored.
- * The actionType is something like view, purchase, thumbs-up, or follow and is defined in options.
- * The userID and itemID are strings that uniquely describe the objects and are translated into
- * internal {@code Long}, which are used in the rest of the jobs to identify the users and items.
- * <p/>
+ *
  * <p>NOTE: These internal IDs are used everywhere in this job chain to id users and items. The
- * size of the space defined by these is very important and must be maintained. The matrixes
- * created will be of size #-of-user by #-of-items. Even when any row or column might be empty.
- * In order to calculate a transpose or matrix multiply the size must be known. The indexes for
- * the internal to external and the reverse are bidirectional mappings kept in files created by
- * this job.
+ * size of the space defined by these is very important and must be maintained.
  * <p/>
  * <p>This will take a root output dir and expect the following layout. It assumes
  * that the input has internal ids that Mahout can use and that the largest dimension of either
@@ -64,19 +55,16 @@ import java.util.Map;
 
 public final class PrepareActionMatrixesJob extends AbstractJob {
 
-    public static final String NUM_USERS = "numUsers.bin";
-    public static final String ITEMID_INDEX1 = "itemIDIndex1";
-    public static final String USER_VECTORS1 = "userVectors1";
+    public static final String NUM_USERS = "numUsers.bin";//number of users must be the same for B and A
+    public static final String ITEMID_INDEX_B = "itemIDIndexB";
+    public static final String USER_VECTORS_B = "userVectorsB";
     public static final String ACTION_B_TRANSPOSE_MATRIX_PATH = "actionBTransposeMatrix";
 
-    public static final String NUM_USERS2 = "numUsers2.bin";
-    public static final String ITEMID_INDEX2 = "itemIDIndex2";
-    public static final String USER_VECTORS2 = "userVectors2";
+    public static final String ITEMID_INDEX_A = "itemIDIndexA";
+    public static final String USER_VECTORS_A = "userVectorsA";
     public static final String ACTION_A_TRANSPOSE_MATRIX_PATH = "actionATransposeMatrix";
 
     private static final int DEFAULT_MIN_PREFS_PER_USER = 1;
-    //public static final String ACTION_B_PREFS = "primary";
-    //public static final String ACTION_A_PREFS = "secondary";
 
     @Override
     public int run(String[] args) throws Exception {
@@ -105,7 +93,7 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
         //convert items to an internal index
         //Path actionBPrefsPath = new Path(getOption("input"), getOption("primaryPrefs"));
         Path actionBPrefsPath = new Path(getOption("primaryPrefs"));
-        Job itemIDIndex = prepareJob(actionBPrefsPath, getOutputPath(ITEMID_INDEX1), TextInputFormat.class,
+        Job itemIDIndex = prepareJob(actionBPrefsPath, getOutputPath(ITEMID_INDEX_B), TextInputFormat.class,
             ItemIDIndexMapper.class, VarIntWritable.class, VarLongWritable.class, ItemIDIndexReducer.class,
             VarIntWritable.class, VarLongWritable.class, SequenceFileOutputFormat.class
         );
@@ -116,7 +104,7 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
         }
         //convert user preferences into a vector per user
         Job toUserVectors = prepareJob(actionBPrefsPath,
-            getOutputPath(USER_VECTORS1),
+            getOutputPath(USER_VECTORS_B),
             TextInputFormat.class,
             ToItemPrefsMapper.class,
             VarLongWritable.class,
@@ -135,7 +123,7 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
         //we need the number of users later
         int numberOfActionBUsers = (int) toUserVectors.getCounters().findCounter(ToUserVectorsReducer.Counters.USERS).getValue();
         //build the rating matrix
-        Job toItemVectors = prepareJob(getOutputPath(USER_VECTORS1), getOutputPath(ACTION_B_TRANSPOSE_MATRIX_PATH),
+        Job toItemVectors = prepareJob(getOutputPath(USER_VECTORS_B), getOutputPath(ACTION_B_TRANSPOSE_MATRIX_PATH),
             ToItemVectorsMapper.class, IntWritable.class, VectorWritable.class, ToItemVectorsReducer.class,
             IntWritable.class, VectorWritable.class);
         toItemVectors.setCombinerClass(ToItemVectorsReducer.class);
@@ -153,7 +141,7 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
         // Suck in Action A from the prefs file(s)
         //convert items to an internal index
         Path actionAPrefsPath = new Path(getOption("secondaryPrefs"));
-        itemIDIndex = prepareJob(actionAPrefsPath, getOutputPath(ITEMID_INDEX2), TextInputFormat.class,
+        itemIDIndex = prepareJob(actionAPrefsPath, getOutputPath(ITEMID_INDEX_A), TextInputFormat.class,
             ItemIDIndexMapper.class, VarIntWritable.class, VarLongWritable.class, ItemIDIndexReducer.class,
             VarIntWritable.class, VarLongWritable.class, SequenceFileOutputFormat.class
         );
@@ -164,7 +152,7 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
         }
         //convert user preferences into a vector per user
         toUserVectors = prepareJob(actionAPrefsPath,
-            getOutputPath(USER_VECTORS2),
+            getOutputPath(USER_VECTORS_A),
             TextInputFormat.class,
             ToItemPrefsMapper.class,
             VarLongWritable.class,
@@ -183,7 +171,7 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
         //we need the number of users later
         int numberOfActionAUsers = (int) toUserVectors.getCounters().findCounter(ToUserVectorsReducer.Counters.USERS).getValue();
         //build the rating matrix
-        toItemVectors = prepareJob(getOutputPath(USER_VECTORS2), getOutputPath(ACTION_A_TRANSPOSE_MATRIX_PATH),
+        toItemVectors = prepareJob(getOutputPath(USER_VECTORS_A), getOutputPath(ACTION_A_TRANSPOSE_MATRIX_PATH),
             ToItemVectorsMapper.class, IntWritable.class, VectorWritable.class, ToItemVectorsReducer.class,
             IntWritable.class, VectorWritable.class);
         toItemVectors.setCombinerClass(ToItemVectorsReducer.class);
@@ -202,6 +190,8 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
         if (numberOfActionBUsers != numberOfActionAUsers) {
             return -1;
         }
+        //the xrecommender assumes the same number of users for each set of vectors even if some vectors are empty
+        //so use this number at your own risk.
         HadoopUtil.writeInt(numberOfActionBUsers, getOutputPath(NUM_USERS), getConf());
 
         //now move the DistributedRowMatrix(es) to the desired output location
