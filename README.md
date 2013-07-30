@@ -6,22 +6,25 @@ Simple recommender using Solr, works online with new history data in the queries
 ## Getting Started
 
 To compile the sources download, build, and install the lastest snapshot of Mahout from http://mahout.apache.org. Then go to the root of this project and run
+```
 ~$ mvn clean install
+```
 
 This will build the job jar with all dependencies in ./target/solr-recommender-0.1-SNAPSHOT-job.jar. The various tasks inside the jar are described below. Each CLI accessible job comes with a fairly complete description of its parameters printed out by running with no parameters.
 
 There is a sample script for running the job in scripts/solr-recommender. To get a trivial sample output go to the solr-recommender/scripts directory and run:
+```
 ~$ ./solr-Recommender
-
+```
 This will use simple sample data from the project and create sample output in project root dir.
 
 Running any job will output help, for example:
-
+```
 ~$ hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar \
        finderbots.recommenders.hadoop.RecommenderDriverJob
-
+```
 Prints the following:
-
+```
  -a1 (--action1) VAL           : String respresenting action1, the primary
                                  preference action (optional). Default:
                                  'purchase'
@@ -57,7 +60,7 @@ Prints the following:
                                  Default: 0
  -x (--xRecommend)             : Create cross-recommender for multiple actions
                                  (optional). Default: false.
-
+```
 ## Task Pipeline
 
 There are sub jobs launched by some of these tasks but that detail aside there are three main tasks to run in order.
@@ -72,19 +75,20 @@ There are sub jobs launched by some of these tasks but that detail aside there a
 ## RecommenderDriverJob
 
 This main task fires off all the subtasks each of which is a separate CLI accessible job.
-
+```
 pat:solr-recommender pat$ hadoop jar target/recommenders-0.1-SNAPSHOT-job.jar finderbots.hadoop.RecommenderDriverJob
 list of job CLI options
-
+```
 ## Theory
 
 Runs a distributed recommender and cross-recommender job as a series of mapreduces. The concept behind this is based on the fact that when preferences are taken from user actions, it is often useful to use one action for recommendation but the other will also work if the secondary action co-occurs with the first. For example views are predictive of purchases if the viewed item was indeed purchased.
+```
  A = matrix of views by user
  B = matrix of purchases by user
  [B'B]H_p = R_p, recommendations from purchase actions with strengths
  [B'A]H_v = R_v, recommendations from view actions (where there was a purchase) with strengths
  R_p + R_v = R, assuming a non-weighted linear combination
-
+```
 The job can either pre-calculate all recs and similarities for all users and items OR it can output the similairty matrix to Solr for use as an online recommender. In this later case [B'B] and optionally [B'A] can be written so Solr. Then a user's history, as a string of item IDs, can be used as a query to return recommended items. If a specific item ID's document is fetched it will contain an ordered list of similar items.
 
 Preferences in the input file should look like userID, action, itemID, with any other columns interspersed (and ignored).
