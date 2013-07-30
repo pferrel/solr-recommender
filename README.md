@@ -83,9 +83,9 @@ list of job CLI options
 
 Runs a distributed recommender and cross-recommender job as a series of mapreduces. The concept behind this is based on the fact that when preferences are taken from user actions, it is often useful to use one action for recommendation but the other will also work if the secondary action co-occurs with the first. For example views are predictive of purchases if the viewed item was indeed purchased.
 ```
- A = matrix of views by user
- B = matrix of purchases by user
- [B'B]H_p = R_p, recommendations from purchase actions with strengths
+ A = matrix of action2 by user, used only in the cross-recommender
+ B = matrix of action1 by user, these are the primary recommenders actions
+ [B'B]H<sub>p</sub> = R<sub>p</sub>, recommendations from purchase actions with strengths
  [B'A]H_v = R_v, recommendations from view actions (where there was a purchase) with strengths
  R_p + R_v = R, assuming a non-weighted linear combination
 ```
@@ -96,6 +96,7 @@ Preferences in the input file should look like userID, action, itemID, with any 
 ## TBD
 
 1. not all options are passed through the driver job to the recommender and xrecommender. These need to be checked.
+2. not all options that need to be passed to the various jobs are forwarded to them, for instance recommendations and preferences per user are not forwarded, these need to be checked for completeness.
 2. Solr is not integrated yet.
 3. log files are of default config in the resources so other formats need to be tested.
 4. the only test is to hand run and check by eyeball the bash script, this should be a junit test with output verification.
