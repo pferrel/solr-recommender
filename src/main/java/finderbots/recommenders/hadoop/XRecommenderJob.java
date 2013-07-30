@@ -26,7 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * <p>Runs a completely distributed cross-recommender job as a series of mapreduces. The concept behind this is based on the fact that when implicit preferences are taken from user actions, rather than explicit preferences, it is useful to use one action for recommendation and the other will also work if the secondary action co-occurs with the first. For example views are predictive of purchases if the viewed item was indeed purchased.</p>
+ * <p>Runs a distributed cross-recommender job as a series of mapreduces. The concept behind this is based on the fact that when preferences are taken from user actions, it is often useful to use one action for recommendation but the other will also work if the secondary action co-occurs with the first. For example views are predictive of purchases if the viewed item was indeed purchased.</p>
  * <p>A = matrix of views by user</p>
  * <p>B = matrix of purchases by user</p>
  * <p>[B'B]H_p = R_p, recommendations from purchase actions with strengths</p>
@@ -39,38 +39,17 @@ import java.util.regex.Pattern;
  * <p>Preferences in the input file should look like {@code userID, itemID[, preferencevalue]}</p>
  * <p/>
  * <p>
- * Preference value is optional to accommodate applications that have no notion of a preference value (that is, the user
- * simply expresses a preference for an item, but no degree of preference). Boolean preferences have not been tested.
- * </p>
- * <p/>
- * <p>
  * The preference value is assumed to be parseable as a {@code double}. The user IDs and item IDs are
  * parsed as {@code long}s.
  * </p>
  * <p/>
- * <p>Command line arguments specific to this class are:</p>
- * <p/>
- * <ol>
- * <li>--input(path): Directory containing one or more text files with the preference data</li>
- * <li>--output(path): output path where recommender output should go</li>
- * <li>todo: --similarityClassname (classname): This is currently hardcoded to Log Likelihood</li>
- * <li>todo: does all recs currently --numRecommendations (integer): Number of recommendations to compute per user (10)</li>
- * <li>todo: --booleanData (boolean): Treat input data as having no pref values (false)</li>
- * <li>todo: does all similairties currently --maxSimilaritiesPerItem (integer): Maximum number of similarities considered per item (100)</li>
- * <li>todo: min = 1 --minPrefsPerUser (integer): ignore users with less preferences than this in the similarity computation (1)</li>
- * <li>todo: max = all --maxPrefsPerUserInItemSimilarity (integer): max number of preferences to consider per user in
- * the item similarity computation phase,
- * users with more preferences will be sampled down (1000)</li>
- * <li>todo: threshold not used, only number of recs applies --threshold (double): discard item pairs with a similarity value below this</li>
- * </ol>
+ * <p>Command line arguments specific to this class are given by executing it with no params. todo: put in final param list</p>
  * <p/>
  * <p/>
  * <p>Note that because of how Hadoop parses arguments, all "-D" arguments must appear before all other
  * arguments.</p>
  */
 public final class XRecommenderJob extends AbstractJob {
-
-    public static final String BOOLEAN_DATA = "booleanData";
 
     private static final int DEFAULT_MAX_SIMILARITIES_PER_ITEM = 100;
     private static final int DEFAULT_MAX_PREFS_PER_USER = 1000;
@@ -83,8 +62,8 @@ public final class XRecommenderJob extends AbstractJob {
     static final String NUM_RECOMMENDATIONS = "numRecommendations";
 
     private static final String CO_OCCURRENCE_MATRIX = "co-occurrence-matrix";
-    private static final String RECS_MATRIX_PATH = "recs";
-    public static final String SIMS_MATRIX_PATH = "sims";
+    private static final String RECS_MATRIX_DIR = "recs";
+    public static final String SIMS_MATRIX_DIR = "sims";
 
     @Override
     public int run(String[] args) throws Exception {
@@ -158,7 +137,7 @@ public final class XRecommenderJob extends AbstractJob {
 
         // calculate the co-occurrence matrix [B'A]
 
-        // since the matrices were ingested and stored transposed we need to transpose again, just so the
+        // since the matrixes were ingested and stored transposed we need to transpose again, just so the
         // multiply can transpose yet again - argh!
         ToolRunner.run(getConf(), new TransposeJob(), new String[]{
             "--input", matrixBTransposePath.toString(),
@@ -221,13 +200,26 @@ public final class XRecommenderJob extends AbstractJob {
             "--tempDir", tempPath.toString(),
         });
 
-        Path recsMatrixPath = findMostRecentPath(tempPath, "product");
+        Path recsMatrixPath = findMostRecentPath(new Path(tempPath, ".."), "product");
 
         // co-occurrence matrix already transposed into rows = the action2 items for item similairty
         // in transposedBTransposeAMatrixPath so calc similar items from it by comparing each row pairwise?
         // not sure if this is correct since it's comparing the cooccurrence item vectors not the action matrix item vectors
-        Path similarItemsPath = new Path(outputPath, XRecommenderJob.SIMS_MATRIX_PATH);
-        ToolRunner.run(getConf(), new RowSimilarityJob(), new String[]{
+        Path similarItemsPath = new Path(outputPath, XRecommenderJob.SIMS_MATRIX_DIR);
+
+        //todo: This isn't needed since the cooccurrence matrix IS the similairty matrix, just move it to output location
+        //but may need to transpose it so columns represent the correct items for
+        ToolRunner.run(getConf(), new TransposeJob(), new String[]{
+            "--input", cooccurrenceMatrixPath.toString(),
+            "--numRows", Integer.toString(numberOfUsers),
+            "--numCols", Integer.toString(numberOfItems),
+            "--tempDir", tempPath.toString(),
+        });
+
+        Path from = findMostRecentPath(tempPath, "transpose");
+        fs.rename(from, new Path(similarItemsPath.toString()));
+
+        /*ToolRunner.run(getConf(), new RowSimilarityJob(), new String[]{
             "--input", transposedBTransposeAMatrixPath.toString(),
             "--output", similarItemsPath.toString(),
             "--numberOfColumns", String.valueOf(numberOfUsers),
@@ -237,8 +229,12 @@ public final class XRecommenderJob extends AbstractJob {
             "--threshold", String.valueOf(threshold),
             "--tempDir", tempPath.toString(),
         });
+        */
 
-        // todo: now move the cooccurrence and recommendations matrixes to the output path
+        // todo: now move the recommendations matrixes to the output path
+        //move recsMatrixPath to new Path( options.get        Path from = new Path(options.getPrimarySimilarityMatrixPath());
+        Path outputRecsPath = new Path(getOption("output"), RECS_MATRIX_DIR);//steal the path for Xrec though created by regular recommender
+        fs.rename(recsMatrixPath, outputRecsPath);
 
         return 0;
     }

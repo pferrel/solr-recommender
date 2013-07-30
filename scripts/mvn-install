@@ -1,5 +1,0 @@
-mvn install
-zip -d target/recommenders-0.1-SNAPSHOT-job.jar META-INF/license/
-zip -d target/recommenders-0.1-SNAPSHOT-job.jar META-INF/license
-zip -d target/recommenders-0.1-SNAPSHOT-job.jar META-INF/LICENSE/
-zip -d target/recommenders-0.1-SNAPSHOT-job.jar META-INF/LICENSE

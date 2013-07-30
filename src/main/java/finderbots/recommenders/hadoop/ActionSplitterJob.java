@@ -1,15 +1,38 @@
 package finderbots.recommenders.hadoop;
 
+/**
+ * Licensed to Patrick J. Ferrel (PJF) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. PJF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ * If someone wants license or copyrights to this let me know
+ * pat.ferrel@gmail.com
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
-import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.common.HadoopUtil;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -25,28 +48,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * User: pat
- * Date: 4/9/13
- * Time: 8:05 AM
- * Takes a directory of files named 'ext-id.txt' or whatever is specified in the options
- * and splits them by action so they can
- * be fed to the recommender training jobs. This is done with HDFS text files as input and creates
- * the same as output.
- *
- * This job creates a single item and user ID space by accumulating all IDs into two BiMaps. This
- * can scale only so far and is single threaded.
- *
- * Danger: This job overwrites anything in the output directories by default, you will not be warned.
- *
- * Todo: create cascading jobs to mapreduce this operation. The trick for a simple job is to
- *    put the indexes in memory and make them available to the m/r jobs so they can be added to
- *    then write them out as the last phase of the job.
- *
- * Note: This does not strictly need to be derived from AbstractJob but is so it can be rewritten
- * to be mapreduce and to fit into Mahout.
+ * <p>Recursively searches a directory tree for file that contain the string passed in with options. These files may be in HDFS and may be written to HDFS. They are expected to contain tab or comma separated values whose columns have userID, action, and itemID strings. The file will be split into output files one per action desired. Unrecognized output will be put in an 'other' directory. The split files are of the form to be fed to recommender training jobs.
+ * <p/>
+ * <p>This job creates a single item and user ID space by accumulating all IDs into two BiMaps. The
+ * BiMaps are written out to index files for later lookup. This job
+ * can scale only so far as memory allows and is single threaded.
+ * <p/>
+ * <p>Danger: This job overwrites anything in the output directories by default, you will not be warned.
+ * <p/>
+ * <p>Todo: mapreduce this job so its not memory limited.</p>
  */
 
-public class ActionSplitterJob extends AbstractJob {
+public class ActionSplitterJob extends Configured implements Tool {
     private static Logger LOGGER = Logger.getRootLogger();
 
     private BiMap<String, String> userIndex;
@@ -67,13 +80,13 @@ public class ActionSplitterJob extends AbstractJob {
         FSDataOutputStream actionOtherFile;
 
         if (!fs.exists(baseOutputDir)) {
-            LOGGER.info("Preference output dir:"+baseOutputDir.toString()+" does not exist. creating it.");
+            LOGGER.info("Preference output dir:" + baseOutputDir.toString() + " does not exist. creating it.");
             fs.mkdirs(baseOutputDir);
         }
 
-        if(fs.exists(action1DirPath)) fs.delete(action1DirPath, true);
-        if(fs.exists(action2DirPath)) fs.delete(action2DirPath, true);
-        if(fs.exists(actionOtherDirPath)) fs.delete(actionOtherDirPath, true);
+        if (fs.exists(action1DirPath)) fs.delete(action1DirPath, true);
+        if (fs.exists(action2DirPath)) fs.delete(action2DirPath, true);
+        if (fs.exists(actionOtherDirPath)) fs.delete(actionOtherDirPath, true);
 
         // cleaned out prefs if they existed, now create a place to put the new ones
         fs.mkdirs(action1DirPath);
@@ -92,7 +105,7 @@ public class ActionSplitterJob extends AbstractJob {
             String actionLogLine;
             while ((actionLogLine = bin.readLine()) != null) {//get user to make a rec for
                 String[] columns = actionLogLine.split(options.getInputDelimiter());
-                if(options.getTimestampColumn() != -1) { // ignoring for now but may be useful
+                if (options.getTimestampColumn() != -1) { // ignoring for now but may be useful
                     String timestamp = columns[options.getTimestampColumn()].trim();
                 }
                 String externalUserIDString = columns[options.getUserIdColumn()].trim();
@@ -108,7 +121,8 @@ public class ActionSplitterJob extends AbstractJob {
                     internalUserID = uniqueUserIDCounter.toString();
                     this.userIndex.forcePut(externalUserIDString, internalUserID);
                     uniqueUserIDCounter += 1;
-                    if(uniqueUserIDCounter % 10000 == 0) LOGGER.debug("Splitter processed: " + Integer.toString(uniqueUserIDCounter) + " unique users.");
+                    if (uniqueUserIDCounter % 10000 == 0)
+                        LOGGER.debug("Splitter processed: " + Integer.toString(uniqueUserIDCounter) + " unique users.");
                 }
                 if (this.itemIndex.containsKey(externalItemIDString)) {// already in the item index
                     internalItemID = this.itemIndex.get(externalItemIDString);
@@ -117,9 +131,9 @@ public class ActionSplitterJob extends AbstractJob {
                     this.itemIndex.forcePut(externalItemIDString, internalItemID);
                     uniqueItemIDCounter += 1;
                 }
-                if(actionString.equals(options.getAction1())){
+                if (actionString.equals(options.getAction1())) {
                     action1File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
-                } else if(actionString.equals(options.getAction2())){
+                } else if (actionString.equals(options.getAction2())) {
                     action2File.writeBytes(internalUserID + options.getOutputDelimiter() + internalItemID + options.getOutputDelimiter() + "1.0\n");
                 } else {
                     actionOtherFile.writeBytes(actionLogLine);//write what's not recognized
@@ -170,15 +184,15 @@ public class ActionSplitterJob extends AbstractJob {
         if (fs.getFileStatus(baseInputDir).isDir()) {
             FileStatus[] stats = fs.listStatus(baseInputDir);
             for (FileStatus fstat : stats) {
-                if(fstat.isDir()){
+                if (fstat.isDir()) {
                     files.addAll(getActionFiles(fstat.getPath()));
-                //todo: this should be done with a regex
-                } else if(
-                        fstat.getPath().getName().contains(options.getInputFilePattern())
-                            && !fstat.isDir()
-                            && !fstat.getPath().getName().startsWith("_")
-                            && !fstat.getPath().getName().startsWith(".")
-                        ){
+                    //todo: this should be done with a regex
+                } else if (
+                    fstat.getPath().getName().contains(options.getInputFilePattern())
+                        && !fstat.isDir()
+                        && !fstat.getPath().getName().startsWith("_")
+                        && !fstat.getPath().getName().startsWith(".")
+                    ) {
                     files.add(fs.open(fstat.getPath()));
                 }
             }
@@ -229,41 +243,31 @@ public class ActionSplitterJob extends AbstractJob {
         ToolRunner.run(new Configuration(), new ActionSplitterJob(), args);
     }
 
-    // Command line options for this job. Execute the main method above with no parameters
-    // to get a help listing.
-    //
-
-    //These first few are available outside the Job statically from the class
-    //make sure the options to the job have been parsed before these are queried
-    //Todo: check for this error and warn about it otherwise a null pointer exception will be thrown?
-
-    public static String getNumberOfUsersFile(){
+    public static String getNumberOfUsersFile() {
         return options.getNumUsersFile();
     }
 
-    public static String getNumberOfItemsFile(){
+    public static String getNumberOfItemsFile() {
         return options.getNumItemsFile();
     }
 
-    public static String getAction1Dir(){
+    public static String getAction1Dir() {
         return options.getAction1Dir();
     }
 
-    public static String getAction2Dir(){
+    public static String getAction2Dir() {
         return options.getAction2Dir();
     }
 
-    public ActionSplitterJob.Options getOptions(){
+    public ActionSplitterJob.Options getOptions() {
         return options;
     }
 
-   /*
-    * This class implements an option parser. It clashes somewhat with Mahouts in AbstractJob since it
-    * does some of the same things in a slightly different way. Used because the options are so numerous
-    * the AbstractJob functionality is not as nicely self-documenting.
-    */
+    /*
+     * This class implements an option parser. Used instead of the Mahout Abstract Job
+     * because the options are numerous.
+     */
     public class Options {
-        //action 1 derived
         private static final String DEFAULT_ACTION_1 = "purchase";
         private static final String DEFAULT_ACTION_2 = "view";
         private static final String DEFAULT_ACTION_OTHER = "other";
@@ -284,7 +288,6 @@ public class ActionSplitterJob extends AbstractJob {
         private static final String DEFAULT_TEMP_PATH = "tmp";
         private static final String DEFAULT_INPUT_FILE_PATTERN = "part";//default is a hadoop created part-xxxx file
 
-        // these could be options if the defaults are not enough
         private String action1 = DEFAULT_ACTION_1;
         private String action2 = DEFAULT_ACTION_2;
         private String action1Dir;
@@ -303,8 +306,6 @@ public class ActionSplitterJob extends AbstractJob {
         private String outputDelimiter = DEFAULT_OUTPUT_DELIMITER;
         private String tempPath = DEFAULT_TEMP_PATH;
         private String inputFilePattern = DEFAULT_INPUT_FILE_PATTERN;
-
-        //optional or derived from required options
         private String indexDir = DEFAULT_INDEX_DIR_PATH;
         private String itemIndexFile = DEFAULT_ITEM_INDEX_FILE;
         private String userIndexFile = DEFAULT_USER_INDEX_FILE;
@@ -324,124 +325,10 @@ public class ActionSplitterJob extends AbstractJob {
         }
 
 
-        public String getAction1() {
-            return action1;
-        }
-
-        private String toDirName( String action ){
-            return action.toLowerCase().replace("_", "-").replace(" ", ".");
-        }
-
-        private String getTextFileExtension(){
-            return getOutputDelimiter().equals(CSV_DELIMETER) ? ".csv" : ".tsv";
-        }
-
-        public String getInputFilePattern() {
-           return inputFilePattern;
-        }
-
-        @Option(name = "-ifp", aliases = { "--inputFilePattern" }, usage = "Search --input recusively for files with this string included in their name. Optional: default = 'part'", required = false)
-        public void setInputFilePattern(String inputFilePattern) {
-           this.inputFilePattern = inputFilePattern;
-        }
-
-        @Option(name = "--action1", usage = "String to id primary action. Optional: default = 'purchase'", required = false)
-        public Options setAction1(String action1) {
-            this.action1 = action1;
-            this.action1Dir = toDirName(action1);
-            this.action1File = this.action1Dir + getTextFileExtension();
-            return this;
-        }
-
-        public String getAction2() {
-            return action2;
-        }
-
-        @Option(name = "--action2", usage = "String to id secondary action. Optional: default = 'add-to-cart'", required = false)
-        public Options setAction2(String action2) {
-            this.action2 = action2;
-            this.action2Dir = toDirName(action2);
-            this.action2File = this.action2Dir + getTextFileExtension();
-            return this;
-        }
-
-        public int getActionColumn() {
-            return actionColumn;
-        }
-
-        @Option(name = "--actionCol", usage = "Which column contains the action. Optional: default = 2", required = false)
-        public Options setActionColumn(int actionColumn) {
-            this.actionColumn = actionColumn;
-            return this;
-        }
-
-        public int getTimestampColumn() {
-            return timestampColumn;
-        }
-
-        @Option(name = "--timestampCol", usage = "Which column contains the timestamp. Optional: default = 0", required = false)
-        public void setTimestampColumn(int timestampColumn) {
-            this.timestampColumn = timestampColumn;
-        }
-
-        public int getItemIdColumn() {
-            return itemIdColumn;
-        }
-
-        @Option(name = "--itemCol", usage = "Which column contains the action. Optional: default = 1", required = false)
-        public void setItemIdColumn(int itemIdColumn) {
-            this.itemIdColumn = itemIdColumn;
-        }
-
-        public int getUserIdColumn() {
-            return userIdColumn;
-        }
-
-        @Option(name = "--userCol", usage = "Which column contains the user Id. Optional: default = 4", required = false)
-        public void setUserIdColumn(int userIdColumn) {
-            this.userIdColumn = userIdColumn;
-        }
-
-        public String getInputDelimiter() {
-            return inputDelimiter;
-        }
-
-        @Option(name = "--inputDelim", usage = "What string to use as column delimiter forinput. Optional: default = '/\t' = tab", required = false)
-        public void setInputDelimiter(String inputDelimiter) {
-            this.inputDelimiter = inputDelimiter;
-        }
-
-        public String getOutputDelimiter() {
-            return outputDelimiter;
-        }
-
-        @Option(name = "--outputDelim", usage = "What string to use as column delimiter in output. Optional: default = ',' = comma", required = false)
-        public void setOutputDelimiter(String outputDelimiter) {
-            this.outputDelimiter = outputDelimiter;
-        }
-
-        public String getIndexDir() {
-            return indexDir;
-        }
-
-        @Option(name = "--indexes", usage = "Place for external to internal item and user ID indexes. This directory will be deleted before the indexes are written. Optional: defualt = output-dir/id-indexes", required = false)
-        public Options setIndexDir(String indexDir) {
-            this.indexDir = indexDir;
-            return this;
-        }
-
-        public String getInputDir() {
-            return this.inputDir;
-        }
-
         @Option(name = "--input", usage = "Dir that will be searched recursively for files that have mixed actions. These will be split into the output dir.", required = true)
         public Options setInputDir(String primaryInputDir) {
             this.inputDir = primaryInputDir;
             return this;
-        }
-
-        public String getOutputDir() {
-            return this.outputDir;
         }
 
         @Option(name = "--output", usage = "Output directory for recs.", required = true)
@@ -450,6 +337,119 @@ public class ActionSplitterJob extends AbstractJob {
             return this;
         }
 
+        @Option(name = "-ifp", aliases = {"--inputFilePattern"}, usage = "Search --input recusively for files with this string included in their name. Optional: default = 'part'", required = false)
+        public void setInputFilePattern(String inputFilePattern) {
+            this.inputFilePattern = inputFilePattern;
+        }
+
+        @Option(name = "--action1", aliases = {"-a1"}, usage = "String to id primary action. Optional: default = 'purchase'", required = false)
+        public Options setAction1(String action1) {
+            this.action1 = action1;
+            this.action1Dir = toDirName(action1);
+            this.action1File = this.action1Dir + getTextFileExtension();
+            return this;
+        }
+
+        @Option(name = "--action2", aliases = {"-a2"}, usage = "String to id secondary action. Optional: default = 'view'", required = false)
+        public Options setAction2(String action2) {
+            this.action2 = action2;
+            this.action2Dir = toDirName(action2);
+            this.action2File = this.action2Dir + getTextFileExtension();
+            return this;
+        }
+
+        @Option(name = "--timestampCol", usage = "Which column contains the timestamp. Optional: default = 0", required = false)
+        public void setTimestampColumn(int timestampColumn) {
+            this.timestampColumn = timestampColumn;
+        }
+
+        @Option(name = "--userIDCol", usage = "Which column contains the user Id. Optional: default = 4", required = false)
+        public void setUserIdColumn(int userIdColumn) {
+            this.userIdColumn = userIdColumn;
+        }
+
+        @Option(name = "--actionIDCol", usage = "Which column contains the action. Optional: default = 2", required = false)
+        public Options setActionColumn(int actionColumn) {
+            this.actionColumn = actionColumn;
+            return this;
+        }
+
+       @Option(name = "--itemIDCol", usage = "Which column contains the action. Optional: default = 1", required = false)
+        public void setItemIdColumn(int itemIdColumn) {
+            this.itemIdColumn = itemIdColumn;
+        }
+
+        @Option(name = "--inputDelim", usage = "What string to use as column delimiter forinput. Optional: default = '/\t' = tab", required = false)
+        public void setInputDelimiter(String inputDelimiter) {
+            this.inputDelimiter = inputDelimiter;
+        }
+
+        @Option(name = "--outputDelim", usage = "What string to use as column delimiter in output. Optional: default = ',' = comma", required = false)
+        public void setOutputDelimiter(String outputDelimiter) {
+            this.outputDelimiter = outputDelimiter;
+        }
+
+        @Option(name = "--indexDir", usage = "Place for external to internal item and user ID indexes. This directory will be deleted before the indexes are written. Optional: defualt = 'id-indexes'", required = false)
+        public Options setIndexDir(String indexDir) {
+            this.indexDir = indexDir;
+            return this;
+        }
+
+        private String toDirName(String action) {
+            return action.toLowerCase().replace("_", "-").replace(" ", ".");
+        }
+
+        public String getAction1() {
+            return action1;
+        }
+
+        private String getTextFileExtension() {
+            return getOutputDelimiter().equals(CSV_DELIMETER) ? ".csv" : ".tsv";
+        }
+
+        public String getInputFilePattern() {
+            return inputFilePattern;
+        }
+
+        public String getAction2() {
+            return action2;
+        }
+
+        public int getActionColumn() {
+            return actionColumn;
+        }
+
+        public int getTimestampColumn() {
+            return timestampColumn;
+        }
+
+        public int getItemIdColumn() {
+            return itemIdColumn;
+        }
+
+        public int getUserIdColumn() {
+            return userIdColumn;
+        }
+
+        public String getInputDelimiter() {
+            return inputDelimiter;
+        }
+
+        public String getOutputDelimiter() {
+            return outputDelimiter;
+        }
+
+        public String getIndexDir() {
+            return indexDir;
+        }
+
+        public String getInputDir() {
+            return this.inputDir;
+        }
+
+        public String getOutputDir() {
+            return this.outputDir;
+        }
 
         public String getUserIndexFile() {
             return userIndexFile;

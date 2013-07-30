@@ -33,7 +33,7 @@ import java.util.Map;
  * tsv or csv of the form:<p/>
  * <p>timestamp userID actionType itemID
  * <p/>
- * <p>All are string except the timestamp, which is ignored. The order is defined by options and any
+ * <p>All are strings except the timestamp, which is ignored. The order is defined by options and any
  * extra columns are ignored.
  * The actionType is something like view, purchase, thumbs-up, or follow and is defined in options.
  * The userID and itemID are strings that uniquely describe the objects and are translated into
@@ -103,7 +103,8 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
 
         // Suck in Action B from the prefs file(s)
         //convert items to an internal index
-        Path actionBPrefsPath = new Path(getOption("input"), getOption("primaryPrefs"));
+        //Path actionBPrefsPath = new Path(getOption("input"), getOption("primaryPrefs"));
+        Path actionBPrefsPath = new Path(getOption("primaryPrefs"));
         Job itemIDIndex = prepareJob(actionBPrefsPath, getOutputPath(ITEMID_INDEX1), TextInputFormat.class,
             ItemIDIndexMapper.class, VarIntWritable.class, VarLongWritable.class, ItemIDIndexReducer.class,
             VarIntWritable.class, VarLongWritable.class, SequenceFileOutputFormat.class
@@ -151,7 +152,7 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
 
         // Suck in Action A from the prefs file(s)
         //convert items to an internal index
-        Path actionAPrefsPath = new Path(getOption("input"), getOption("secondaryPrefs"));
+        Path actionAPrefsPath = new Path(getOption("secondaryPrefs"));
         itemIDIndex = prepareJob(actionAPrefsPath, getOutputPath(ITEMID_INDEX2), TextInputFormat.class,
             ItemIDIndexMapper.class, VarIntWritable.class, VarLongWritable.class, ItemIDIndexReducer.class,
             VarIntWritable.class, VarLongWritable.class, SequenceFileOutputFormat.class
