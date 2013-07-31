@@ -83,7 +83,10 @@ list of job CLI options
 
 ## RecommenderDriverJob Output
 
+The job can either pre-calculate all recs and similarities for all users and items OR it can output the similairty matrix to Solr for use as an online recommender. In this later case [B'B] and optionally [B'A] can be written to Solr. Then a user's history, as a string of item IDs, can be used as a query to return recommended items. If a specific item ID's document is fetched it will contain an ordered list of similar items.
+
 The job takes a directory, which is searched recursively for files matching the pattern passed in (only substring match for now). The output will be a preference file per action type, a similairty matrix (two if doing --xrecommend), pre-calculated recs (also cross-recs if doing --xrecommend). The output is structured:
+
 ```
 output
   |-- id-indexes
@@ -94,11 +97,11 @@ output
   |-- prefs
   |     |-- 'action1'
   |     |     \-- 'action1.[tsv|csv]' contains preferences from action1 with Mahout IDs = ints. These IDs
-  |     |         are indexes into the ID BiMap index. They will return the string used as item or
+  |     |         are Keys into the ID BiMap index. They will return the string used as item or
   |     |         user ID from the original logs files. The file is input to the Mahout RecommenderJob.
   |     |-- 'action2'
-  |     |      \-- 'action1.[tsv|csv]' contains preferences from action1 with Mahout IDs = ints. These IDs
-  |     |         are indexes into the ID BiMap index. They will return the string used as item or
+  |     |      \-- 'action2.[tsv|csv]' contains preferences from action2 with Mahout IDs = ints. These IDs
+  |     |         are Keys into the ID BiMap index. They will return the string used as item or
   |     |         user ID from the original logs files. The file is input to the  XRecommenderJob.
   |     \-- other
   |            \-- other.[tsv|csv] contains preferences from actions other than action1 or action2
@@ -112,8 +115,8 @@ output
   \-- s-recs
         |-- recs
         |     \-- part-xxxx sequence files making up a DistributedRowMatrix of Key = org.apache.hadoop.io.IntWritable, Value = org.apache.mahout.math.VectorWritable
-        |         This is the user recommendation matrix, Key = itemID, Value a weighted set of ItemIDs
-        |         indicating strength of similairty.
+        |         This is the user cross-recommendation matrix, Key = userID, Value a weighted set of ItemIDs
+        |         indicating strength of recommendation.
         \-- sims
               \-- part-xxxx sequence files making up a DistributedRowMatrix of Key = org.apache.hadoop.io.IntWritable, Value = org.apache.mahout.math.VectorWritable
                   This is the item cross-similarity matrix, Key = itemID, Value a weighted set of ItemIDs
@@ -121,7 +124,10 @@ output
 ```
 ## Theory
 
-Runs a distributed recommender and cross-recommender job as a series of mapreduces. The concept behind this is based on the fact that when preferences are taken from user actions, it is often useful to use one action for recommendation but the other will also work if the secondary action co-occurs with the first. For example views are predictive of purchases if the viewed item was indeed purchased.
+The concept behind this is based on the fact that when preferences are taken from user actions, it is often useful to use one action for recommendation but the other will also work if the secondary action co-occurs with the first. For example views are predictive of purchases if the viewed item was indeed purchased. As long as the user ID is the same for both action A and Action B the items do not have to be the same. In this way, a user's actions on items in B can be correlated to recommend items from B.
+
+This first cut creates and requires unified item ids across both B and A but there is no theoretical or mathematical requirement for this and there are some interesting use cases that use different item IDs. Therefor this can be used in cases where the same user takes two different actions and you want to use them both to recommend the primary action. For example users' purchases can be used to recommend thing a given user might want to purchase and users' views can be used to recommend purchases. Adding the two recommendation lists may well yield better recommendations than either alone.
+
 ```
  A = matrix of action2 by user, used only in the cross-recommender
  B = matrix of action1 by user, these are the primary recommenders actions
@@ -129,7 +135,6 @@ Runs a distributed recommender and cross-recommender job as a series of mapreduc
  [B'A]H_v = R_v, recommendations from action2 (where there was also an action1)
  R_p + R_v = R, assumes a non-weighted linear combination, ideally they are weighted to optimize results.
 ```
-The job can either pre-calculate all recs and similarities for all users and items OR it can output the similairty matrix to Solr for use as an online recommender. In this later case [B'B] and optionally [B'A] can be written so Solr. Then a user's history, as a string of item IDs, can be used as a query to return recommended items. If a specific item ID's document is fetched it will contain an ordered list of similar items.
 
 ## TBD
 

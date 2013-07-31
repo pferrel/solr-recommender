@@ -8,7 +8,7 @@ package finderbots.recommenders.hadoop;
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
  *
- * If someone want license or copyrights to this let me know
+ * If someone wants license or copyrights to this let me know
  * pat.ferrel@gmail.com
  *
  * http://www.apache.org/licenses/LICENSE-2.0

@@ -243,23 +243,9 @@ public class ActionSplitterJob extends Configured implements Tool {
         ToolRunner.run(new Configuration(), new ActionSplitterJob(), args);
     }
 
-    public static String getNumberOfUsersFile() {
-        return options.getNumUsersFile();
-    }
-
-    public static String getNumberOfItemsFile() {
-        return options.getNumItemsFile();
-    }
-
-    public static String getAction1Dir() {
-        return options.getAction1Dir();
-    }
-
-    public static String getAction2Dir() {
-        return options.getAction2Dir();
-    }
-
     public ActionSplitterJob.Options getOptions() {
+        //for cases when another class want to know how ActionSplitter is configured and
+        //is not accessing a static option default
         return options;
     }
 
@@ -282,9 +268,9 @@ public class ActionSplitterJob extends Configured implements Tool {
         private static final String CSV_DELIMETER = ",";
         private static final String DEFAULT_INPUT_DELIMITER = TSV_DELIMETER;
         private static final String DEFAULT_OUTPUT_DELIMITER = TSV_DELIMETER;
-        private static final String DEFAULT_INDEX_DIR_PATH = "id-indexes";
-        private static final String DEFAULT_USER_INDEX_FILE = "user-index";
-        private static final String DEFAULT_ITEM_INDEX_FILE = "item-index";
+        public static final String DEFAULT_INDEX_DIR = "id-indexes";//assumed to be a dir in output unless specified
+        public static final String DEFAULT_USER_INDEX_FILENAME = "user-index";
+        public static final String DEFAULT_ITEM_INDEX_FILENAME = "item-index";
         private static final String DEFAULT_TEMP_PATH = "tmp";
         private static final String DEFAULT_INPUT_FILE_PATTERN = "part";//default is a hadoop created part-xxxx file
 
@@ -306,9 +292,9 @@ public class ActionSplitterJob extends Configured implements Tool {
         private String outputDelimiter = DEFAULT_OUTPUT_DELIMITER;
         private String tempPath = DEFAULT_TEMP_PATH;
         private String inputFilePattern = DEFAULT_INPUT_FILE_PATTERN;
-        private String indexDir = DEFAULT_INDEX_DIR_PATH;
-        private String itemIndexFile = DEFAULT_ITEM_INDEX_FILE;
-        private String userIndexFile = DEFAULT_USER_INDEX_FILE;
+        private String indexDir = DEFAULT_INDEX_DIR;
+        private String itemIndexFile = DEFAULT_ITEM_INDEX_FILENAME;
+        private String userIndexFile = DEFAULT_USER_INDEX_FILENAME;
 
         // required options
         private String inputDir;
