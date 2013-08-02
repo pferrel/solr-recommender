@@ -24,7 +24,7 @@ fi
 echo "Writing recommendations to: "$OUT
 
 hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar \
-    finderbots.recommenders.hadoop.RecommenderDriverJob  \
+    finderbots.recommenders.hadoop.RecommenderUpdateJob  \
  	--input $INPUT \
  	--inputFilePattern ".tsv" \
  	--output $OUT \

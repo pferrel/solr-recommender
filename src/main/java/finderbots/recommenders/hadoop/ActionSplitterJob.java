@@ -45,7 +45,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 /**
  * <p>Recursively searches a directory tree for files that contain the string passed in with options. These files may be in HDFS and may be written to HDFS. They are expected to contain tab or comma separated values whose columns have userID, action, and itemID strings. The file will be split into output files one per action desired. Unrecognized output will be put in an 'other' directory. The split files are of the form to be fed to recommender training jobs.
@@ -152,20 +151,12 @@ public class ActionSplitterJob extends Configured implements Tool {
         FileSystem fs = where.getFileSystem(new JobConf());
         if (fs.getFileStatus(where).isDir()) {
             FSDataOutputStream userIndexFile = fs.create(userIndexPath);
-            this.saveIndex(userIndex, userIndexFile);
+            Utils.writeIndex(userIndex, userIndexFile);
             FSDataOutputStream itemIndexFile = fs.create(itemIndexPath);
-            this.saveIndex(itemIndex, itemIndexFile);
+            Utils.writeIndex(itemIndex, itemIndexFile);
         } else {
             throw new IOException("Bad locaton for ID Indexes: " + where.toString());
         }
-    }
-
-    public void saveIndex(BiMap<String, String> map, FSDataOutputStream file) throws IOException {
-
-        for (Map.Entry e : map.entrySet()) {
-            file.writeBytes(e.getKey().toString() + options.getOutputDelimiter() + e.getValue().toString() + "\n");
-        }
-        file.close();
     }
 
     public int getNumberOfUsers() {
@@ -230,7 +221,7 @@ public class ActionSplitterJob extends Configured implements Tool {
         Path itemIndexPath = new Path(options.getIndexDir(), options.getItemIndexFile());
         if (fs.exists(userIndexPath)) fs.delete(userIndexPath, false);//delete file only!
         if (fs.exists(itemIndexPath)) fs.delete(itemIndexPath, false);//delete file only!
-        // get the size of the matrixes and put them where the calling job
+        // get the size of the matrices and put them where the calling job
         // can find them
         HadoopUtil.writeInt(getNumberOfUsers(), new Path(indexesPath, options.getNumUsersFile()), getConf());
         HadoopUtil.writeInt(getNumberOfItems(), new Path(indexesPath, options.getNumItemsFile()), getConf());
@@ -264,10 +255,10 @@ public class ActionSplitterJob extends Configured implements Tool {
         private static final int DEFAULT_ITEM_ID_COLUMN = 2;
         private static final int DEFAULT_ACTION_COLUMN = 1;
         private static final int DEFAULT_USER_ID_COLUMN = 0;
-        private static final String TSV_DELIMETER = "\t";
-        private static final String CSV_DELIMETER = ",";
-        private static final String DEFAULT_INPUT_DELIMITER = TSV_DELIMETER;
-        private static final String DEFAULT_OUTPUT_DELIMITER = TSV_DELIMETER;
+        private static final String TSV_DELIMITER = "\t";
+        private static final String CSV_DELIMITER = ",";
+        private static final String DEFAULT_INPUT_DELIMITER = TSV_DELIMITER;
+        private static final String DEFAULT_OUTPUT_DELIMITER = TSV_DELIMITER;
         public static final String DEFAULT_INDEX_DIR = "id-indexes";//assumed to be a dir in output unless specified
         public static final String DEFAULT_USER_INDEX_FILENAME = "user-index";
         public static final String DEFAULT_ITEM_INDEX_FILENAME = "item-index";
@@ -390,7 +381,7 @@ public class ActionSplitterJob extends Configured implements Tool {
         }
 
         private String getTextFileExtension() {
-            return getOutputDelimiter().equals(CSV_DELIMETER) ? ".csv" : ".tsv";
+            return getOutputDelimiter().equals(CSV_DELIMITER) ? ".csv" : ".tsv";
         }
 
         public String getInputFilePattern() {

@@ -39,7 +39,7 @@ import java.util.Map;
  * <p/>
  */
 
-public final class PrepareActionMatrixesJob extends AbstractJob {
+public final class PrepareActionMatricesJob extends AbstractJob {
 
     public static final String NUM_USERS = "numUsers.bin";//number of users must be the same for B and A
     public static final String ITEMID_INDEX_B = "itemIDIndexB";
@@ -191,7 +191,7 @@ public final class PrepareActionMatrixesJob extends AbstractJob {
     }
 
     public static void main(String[] args) throws Exception {
-        ToolRunner.run(new Configuration(), new PrepareActionMatrixesJob(), args);
+        ToolRunner.run(new Configuration(), new PrepareActionMatricesJob(), args);
     }
 
 }

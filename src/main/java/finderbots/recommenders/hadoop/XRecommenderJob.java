@@ -62,6 +62,7 @@ public final class XRecommenderJob extends AbstractJob {
     static final String NUM_RECOMMENDATIONS = "numRecommendations";
 
     private static final String CO_OCCURRENCE_MATRIX = "co-occurrence-matrix";
+    public static final String DEFAULT_PREPARE_DIR = "prepareActionMatrices";
     private static final String RECS_MATRIX_DIR = "recs";
     public static final String SIMS_MATRIX_DIR = "sims";
 
@@ -110,10 +111,10 @@ public final class XRecommenderJob extends AbstractJob {
         double threshold = hasOption("threshold")
             ? Double.parseDouble(getOption("threshold")) : RowSimilarityJob.NO_THRESHOLD;
 
-        Path prepPath = getTempPath("prepareActionMatrixes");
-        Path matrixATransposePath = new Path(prepPath, PrepareActionMatrixesJob.ACTION_A_TRANSPOSE_MATRIX_PATH);
+        Path prepPath = getTempPath(DEFAULT_PREPARE_DIR);
+        Path matrixATransposePath = new Path(prepPath, PrepareActionMatricesJob.ACTION_A_TRANSPOSE_MATRIX_PATH);
         // matrix A is in
-        Path matrixBTransposePath = new Path(prepPath, PrepareActionMatrixesJob.ACTION_B_TRANSPOSE_MATRIX_PATH);
+        Path matrixBTransposePath = new Path(prepPath, PrepareActionMatricesJob.ACTION_B_TRANSPOSE_MATRIX_PATH);
         Path tempPath = getTempPath();
         JobConf conf = new JobConf();
         FileSystem fs = tempPath.getFileSystem(conf);
@@ -123,7 +124,7 @@ public final class XRecommenderJob extends AbstractJob {
 
         // Ingest both actions into a DistributedRowMatrix(es) so create [A] for secondary actions and [B] for
         // primary actions
-        ToolRunner.run(getConf(), new PrepareActionMatrixesJob(), new String[]{
+        ToolRunner.run(getConf(), new PrepareActionMatricesJob(), new String[]{
             "--input", getInputPath().toString(),
             "--output", prepPath.toString(),
             "--maxPrefsPerUser", String.valueOf(maxPrefsPerUserInItemSimilarity),
@@ -137,7 +138,7 @@ public final class XRecommenderJob extends AbstractJob {
 
         // calculate the co-occurrence matrix [B'A]
 
-        // since the matrixes were ingested and stored transposed we need to transpose again, just so the
+        // since the matrices were ingested and stored transposed we need to transpose again, just so the
         // multiply can transpose yet again - argh!
         ToolRunner.run(getConf(), new TransposeJob(), new String[]{
             "--input", matrixBTransposePath.toString(),

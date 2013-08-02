@@ -52,6 +52,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
+import org.apache.mahout.cf.taste.hadoop.preparation.PreparePreferenceMatrixJob;
 import org.apache.mahout.common.HadoopUtil;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -61,7 +62,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public final class RecommenderDriverJob extends Configured implements Tool {
+public final class RecommenderUpdateJob extends Configured implements Tool {
     private static Logger LOGGER = Logger.getRootLogger();
 
     private int numberOfUsers;
@@ -122,7 +123,6 @@ public final class RecommenderDriverJob extends Configured implements Tool {
         });
         //Now move the similarity matrix to the p-recs/sims location rather than leaving is in the tmp dir
         //this will be written to Solr if specified in the options.
-        moveSimilarityMatrix();
 
         if (options.getDoXRecommender()) {
             //note: similairty class is not used, cooccurrence only for now
@@ -138,6 +138,8 @@ public final class RecommenderDriverJob extends Configured implements Tool {
                 "--secondaryPrefs", action2PrefsPath,
             });
         }
+        moveMatrices();
+        //move user history and similarity matrices
 
         return 0;
     }
@@ -170,18 +172,27 @@ public final class RecommenderDriverJob extends Configured implements Tool {
     }
 
 
-    private static void moveSimilarityMatrix() throws IOException {
-        //todo: this should take an arg pointing to the similarityMatrix
+    private void moveMatrices() throws IOException {
         //so it can output to Solr if options specify
-        FileSystem fs = FileSystem.get(new JobConf());
+        FileSystem fs = FileSystem.get(getConf());
         Path from = new Path(options.getPrimarySimilarityMatrixPath());
-        Path to = new Path(options.getPrimaryOutputDir(), XRecommenderJob.SIMS_MATRIX_DIR);//steal the path for Xrec though created by regular recommender
+        Path to = new Path(options.getPrimaryOutputDir(), XRecommenderJob.SIMS_MATRIX_DIR);//steal the dir name from Xrec
         fs.rename(from, to);
+        //move the primary user action matrix to output
+        from = new Path(new Path(options.getPrimaryTempDir(), RecommenderJob.DEFAULT_PREPARE_DIR), PreparePreferenceMatrixJob.USER_VECTORS);
+        to = new Path(options.getOutputDir(), options.getPrimaryActionHistoryDir());
+        fs.rename(from, to);
+        //if it was created move the secondary user action matrix to output
+        if(options.getDoXRecommender()){
+            from = new Path(new Path(options.getSecondaryTempDir(), XRecommenderJob.DEFAULT_PREPARE_DIR), PrepareActionMatricesJob.USER_VECTORS_A);
+            to = new Path(options.getOutputDir(), options.getSecondaryActionHistoryDir());
+            fs.rename(from, to);
+        }
     }
 
 
     public static void main(String[] args) throws Exception {
-        ToolRunner.run(new Configuration(), new RecommenderDriverJob(), args);
+        ToolRunner.run(new Configuration(), new RecommenderUpdateJob(), args);
     }
 
     // Command line options for this job. Execute the main method above with no parameters
@@ -208,9 +219,10 @@ public final class RecommenderDriverJob extends Configured implements Tool {
         private static final String PRIMARY_OUTPUT_DIR = "p-recs";
         private static final String SECONDARY_OUTPUT_DIR = "s-recs";
         private static final String DEFAULT_PREFS_DIR = "prefs";
-        private static final String DEFAULT_PRIMARY_PREFS_PATH = "primary-prefs";
-        private static final String DEFAULT_SECONDARY_PREFS_PATH = "secondary-prefs";
         private static final String DEFAULT_INDEXES_DIR = "id-indexes";
+        private static final String DEFAULT_ACTION_HISTORY_DIR = "actions";
+        private static final String DEFAULT_PRIMARY_ACTION_HISTORY_DIR = "p-action";
+        private static final String DEFAULT_SECONDARY_ACTION_HISTORY_DIR = "s-action";
         private static final String DEFAULT_TEMP_DIR = "tmp";
         private static final String PRIMARY_TEMP_DIR = "tmp1";
         private static final String ROOT_RECS_DIR = "recs";
@@ -234,8 +246,13 @@ public final class RecommenderDriverJob extends Configured implements Tool {
         private Boolean doXRecommender = false;
         private String fileNamePatternString = DEFAULT_FILE_PATTERN;
         private String indexesDir = DEFAULT_INDEXES_DIR;
+        private String primaryActionHistoryDir;
+        private String secondaryActionHistoryDir;
 
         Options() {
+            //these are relative to the output path
+            this.primaryActionHistoryDir = new Path(DEFAULT_ACTION_HISTORY_DIR, DEFAULT_PRIMARY_ACTION_HISTORY_DIR).toString();
+            this.secondaryActionHistoryDir = new Path(DEFAULT_ACTION_HISTORY_DIR, DEFAULT_SECONDARY_ACTION_HISTORY_DIR).toString();
         }
 
         @Option(name = "-i", aliases = {"--input"}, usage = "Input directory searched recursively for files in 'ExternalID' format where ID are unique strings and preference files contain combined actions with action IDs. Subdirs will be created by action type, so 'purchase', 'view', etc.", required = true)
@@ -301,6 +318,14 @@ public final class RecommenderDriverJob extends Configured implements Tool {
         @Option(name = "-s", aliases = {"--similarityType"}, usage = "Similarity measure to use. Default SIMILARITY_LOGLIKELIHOOD. Note: this is only used for primary recs and secondary item similarities.", required = false)
         public void setSimilairtyType(String similairtyType) {
             this.similairtyType = similairtyType;
+        }
+
+        public String getPrimaryActionHistoryDir() {
+            return primaryActionHistoryDir;
+        }
+
+        public String getSecondaryActionHistoryDir() {
+            return secondaryActionHistoryDir;
         }
 
         public int getNumberOfRecsPerUser() {

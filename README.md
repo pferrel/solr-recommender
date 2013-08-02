@@ -1,7 +1,7 @@
 solr-recommender
 ================
 
-Simple recommender using Solr, works online with new history data in the queries. Does batch updates of the training/index data using Mahout.
+Recommender using Solr, works online by supplying user history as the query and so may contain history that is not yet in the training data. The result is generated quickly (depending on size of training data and scaling of Solr) and so can be used in online situations.  This job also can create all recommendations and item-item similarities for all users and items using the Mahout Recommender. It also has a cross-action recommender for cases when a secondary action can be used to recommend the primary action. For example the primary action is purchase but view data is also available and so can be used to recommend purchases, see Theory below. Does batch updates of the training/index data using Mahout.
 
 ## Getting Started
 
@@ -21,7 +21,7 @@ This will use simple sample data from the project and create sample output in pr
 Running any job will output help, for example:
 ```
 ~$ hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar \
-       finderbots.recommenders.hadoop.RecommenderDriverJob
+       finderbots.recommenders.hadoop.RecommenderUpdateJob
 ```
 Prints the following:
 ```
@@ -63,7 +63,7 @@ Prints the following:
 ```
 ## Task Pipeline
 
-The RecommenderDriverJob runs various subjobs, some of which can be run separately. This job will performs the following tasks:
+The RecommenderUpdateJob runs various subjobs, some of which can be run separately. This job will performs the following tasks:
   1. Ingest text logfiles splitting into DistributedRowMatix(es) one per action
   2. Write out BiMaps that translate External string item and user IDs to and from Internal Mahout long IDs.
   3. Calculate [B'B] with LLR using the Mahout Item-based Recommender job to get the item-item 'similarity matrix' and write these to Solr for indexing.
@@ -73,15 +73,15 @@ The RecommenderDriverJob runs various subjobs, some of which can be run separate
   6. Queries, consisting of user history vectors of itemIDs are fed to Solr. If the primary action is being used for recommendations, the primary action field of the index is queried. If both primary (recommendations) and secondary (cross-recommendations) are desired both fields are queried. If item similarity is required, the doc associated with an item ID is returned indicating similar items. This document field will be ordered by the rank of similarity that any item has with the doc item.
   7. Solr returns a ranked list of items.
 
-## RecommenderDriverJob
+## RecommenderUpdateJob
 
 This main task fires off all the subtasks each of which is a separate CLI accessible job.
 ```
-pat:solr-recommender pat$ hadoop jar target/recommenders-0.1-SNAPSHOT-job.jar finderbots.hadoop.RecommenderDriverJob
+pat:solr-recommender pat$ hadoop jar target/recommenders-0.1-SNAPSHOT-job.jar finderbots.hadoop.RecommenderUpdateJob
 list of job CLI options
 ```
 
-## RecommenderDriverJob Output
+## RecommenderUpdateJob Output
 
 The job can either pre-calculate all recs and similarities for all users and items OR it can output the similairty matrix to Solr for use as an online recommender. In this later case [B'B] and optionally [B'A] can be written to Solr. Then a user's history, as a string of item IDs, can be used as a query to return recommended items. If a specific item ID's document is fetched it will contain an ordered list of similar items.
 
@@ -129,11 +129,13 @@ The concept behind this is based on the fact that when preferences are taken fro
 This first cut creates and requires unified item ids across both B and A but there is no theoretical or mathematical requirement for this and there are some interesting use cases that use different item IDs. Therefor this can be used in cases where the same user takes two different actions and you want to use them both to recommend the primary action. For example users' purchases can be used to recommend thing a given user might want to purchase and users' views can be used to recommend purchases. Adding the two recommendation lists may well yield better recommendations than either alone.
 
 ```
- A = matrix of action2 by user, used only in the cross-recommender
- B = matrix of action1 by user, these are the primary recommenders actions
- [B'B]H_p = R_p, recommendations from action1
- [B'A]H_v = R_v, recommendations from action2 (where there was also an action1)
- R_p + R_v = R, assumes a non-weighted linear combination, ideally they are weighted to optimize results.
+A = matrix of action2 by user, used for cross-action recommendations for instance views.
+B = matrix of action1 by user, these are the primary recommenders actions for instance purchases.
+H_a1 = all user history for recommendations of action1 in column vectors. This may be all action1's recorded and so may = B' or it may have truncated history to get more recent activity in recs.
+H_a2 = all user history for recommendations of action2 in column vectors. This may be all action2's recorded and so may = A' or it may have truncated history to get more recent activity in recs.
+[B'B]H_a1 = R_a1, recommendations from action1. Recommendation are for action1.
+[B'A]H_a2 = R_a2, recommendations from action2 (where there was also an action1). Cross-recommendations are for action1.
+R_a1+ R_a2 = R, assumes a non-weighted linear combination, ideally they are weighted to optimize results.
 ```
 
 ## TBD

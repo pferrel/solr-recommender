@@ -92,7 +92,7 @@ import java.util.regex.Pattern;
  */
 public final class RecommenderJob extends AbstractJob {
 
-  public static final String BOOLEAN_DATA = "booleanData";
+    public static final String BOOLEAN_DATA = "booleanData";
 
     private static final int DEFAULT_MAX_SIMILARITIES_PER_ITEM = 100;
     private static final int DEFAULT_MAX_PREFS_PER_USER = 1000;
@@ -106,6 +106,7 @@ public final class RecommenderJob extends AbstractJob {
 
     static final String ITEMS_FILE = "itemsFile";
     static final String USERS_FILE = "usersFile";
+    public static final String DEFAULT_PREPARE_DIR = "preparePreferenceMatrix";
     private static final String CO_OCCURRENCE_MATRIX = "co-occurrence-matrix";
     private static final String RECS_MATRIX_PATH = "recs";
     private static final String SIMS_MATRIX_PATH = "sims";
@@ -158,7 +159,7 @@ public final class RecommenderJob extends AbstractJob {
         ? Double.parseDouble(getOption("threshold")) : RowSimilarityJob.NO_THRESHOLD;
 
 
-    Path prepPath = getTempPath("preparePreferenceMatrix");
+    Path prepPath = getTempPath(DEFAULT_PREPARE_DIR);
     Path similarityMatrixPath = getTempPath("similarityMatrix");
     Path prePartialMultiplyPath1 = getTempPath("prePartialMultiply1");
     Path prePartialMultiplyPath2 = getTempPath("prePartialMultiply2");
