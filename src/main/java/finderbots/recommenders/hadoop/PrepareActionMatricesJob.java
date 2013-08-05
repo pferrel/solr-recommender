@@ -115,10 +115,13 @@ public final class PrepareActionMatricesJob extends AbstractJob {
         toItemVectors.setCombinerClass(ToItemVectorsReducer.class);
 
         /* configure sampling regarding the uservectors */
-        if (hasOption("maxPrefsPerUser")) {
+        /* Downsampling removed until mahout 0.9 integration
+            if (hasOption("maxPrefsPerUser")) {
+
             int samplingSize = Integer.parseInt(getOption("maxPrefsPerUser"));
             toItemVectors.getConfiguration().setInt(ToItemVectorsMapper.SAMPLE_SIZE, samplingSize);
         }
+        */
         succeeded = toItemVectors.waitForCompletion(true);
         if (!succeeded) {
             return -1;
@@ -163,10 +166,13 @@ public final class PrepareActionMatricesJob extends AbstractJob {
         toItemVectors.setCombinerClass(ToItemVectorsReducer.class);
 
         /* configure sampling regarding the uservectors */
-        if (hasOption("maxPrefsPerUser")) {
+        /* Downsampling removed until mahout 0.9 integration
+            if (hasOption("maxPrefsPerUser")) {
+
             int samplingSize = Integer.parseInt(getOption("maxPrefsPerUser"));
             toItemVectors.getConfiguration().setInt(ToItemVectorsMapper.SAMPLE_SIZE, samplingSize);
         }
+        */
         succeeded = toItemVectors.waitForCompletion(true);
         if (!succeeded) {
             return -1;

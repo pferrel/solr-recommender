@@ -159,7 +159,7 @@ public final class RecommenderJob extends AbstractJob {
         ? Double.parseDouble(getOption("threshold")) : RowSimilarityJob.NO_THRESHOLD;
 
 
-    Path prepPath = getTempPath(DEFAULT_PREPARE_DIR);
+    Path prepPath = new Path(getTempPath(), DEFAULT_PREPARE_DIR);
     Path similarityMatrixPath = getTempPath("similarityMatrix");
     Path prePartialMultiplyPath1 = getTempPath("prePartialMultiply1");
     Path prePartialMultiplyPath2 = getTempPath("prePartialMultiply2");
@@ -174,7 +174,7 @@ public final class RecommenderJob extends AbstractJob {
       ToolRunner.run(getConf(), new PreparePreferenceMatrixJob(), new String[]{
         "--input", getInputPath().toString(),
         "--output", prepPath.toString(),
-        "--maxPrefsPerUser", String.valueOf(maxPrefsPerUserInItemSimilarity),
+//        "--maxPrefsPerUser", String.valueOf(maxPrefsPerUserInItemSimilarity),
         "--minPrefsPerUser", String.valueOf(minPrefsPerUser),
         "--booleanData", String.valueOf(booleanData),
         "--tempDir", getTempPath().toString(),

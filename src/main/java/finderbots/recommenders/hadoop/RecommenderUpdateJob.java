@@ -169,6 +169,18 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
         } catch (Exception e) {
             LOGGER.info("No temp dir to delete, skipping.");
         }
+        try {
+            fs.delete(new Path(options.getOutputDir(), options.getPrimaryActionHistoryDir()), true);
+        } catch (Exception e) {
+            LOGGER.info("No action1 history dir to delete, skipping.");
+        }
+        if(options.getDoXRecommender()){
+            try {
+                fs.delete(new Path(options.getOutputDir(), options.getSecondaryActionHistoryDir()), true);
+            } catch (Exception e) {
+                LOGGER.info("No action2 history dir to delete, skipping.");
+            }
+        }
     }
 
 

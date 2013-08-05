@@ -31,10 +31,12 @@ package finderbots.recommenders.hadoop;
  * <p>todo: Solr and LucidWorks Search support many stores for indexing. It might be nice to have a pluggable writer for different stores.</p>
  */
 
+import com.google.common.collect.BiMap;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.Tool;
@@ -52,6 +54,9 @@ public final class WriteToSolrJob extends Configured implements Tool {
     private static Logger LOGGER = Logger.getRootLogger();
 
     private static Options options;
+    private BiMap<String, String> userIndex;
+    private BiMap<String, String> itemIndex;
+    FileSystem fs;
 
     @Override
     public int run(String[] args) throws Exception {
@@ -66,22 +71,41 @@ public final class WriteToSolrJob extends Configured implements Tool {
             parser.printUsage(System.err);
             return -1;
         }
+        fs = FileSystem.get(getConf());
 
-        cleanOutputDirs(options);
+        cleanOutputDirs();
 
+        Path itemIndexPath = new Path(options.getItemIndexFilePath());
+        Path userIndexPath = new Path(options.getUserIndexFilePath());
+        Path itemSimilarityMatrixPath = new Path(options.getItemSimilarityMatrixDir());
+        Path crossActionSimilarityMatrixPath = new Path(options.getCrossSimilarityMatrixDir());
+        Path solrSimilaritiesDocsFilePath = new Path(options.getSolrItemsSimilaritiesDocFilePath());
+        FSDataOutputStream solrSimilaritiesDocsFile = fs.create(solrSimilaritiesDocsFilePath);
 
-
+        itemIndex = Utils.readIndex(itemIndexPath );
+        //writing the similarities does not require the user index
+        writeDRMasCSV(itemIndex, userIndex, itemSimilarityMatrixPath, solrSimilaritiesDocsFile);
         return 0;
     }
 
-    private void cleanOutputDirs(Options options) throws IOException {
-        FileSystem fs = FileSystem.get(getConf());
+    private void writeDRMasCSV( BiMap<String, String> itemIndex, BiMap<String, String> userIndex, Path mahoutDRMPath, FSDataOutputStream outFile){
+
+
+    }
+
+    private void cleanOutputDirs() throws IOException {
         //todo: instead of deleting all, delete only the ones we overwrite?
         Path outputDir = new Path(options.getOutputDir());
-        try {
-            fs.delete(outputDir, true);
-        } catch (Exception e) {
-            LOGGER.info("No output dir to delete, skipping.");
+        Path solrItemsSimilaritiesDocsDir = new Path(options.getSolrItemSimilaritiesDocsDir());
+        Path solrItemsSimilaritiesDocsFilePath = new Path(options.getSolrItemsSimilaritiesDocFilePath());
+        if(!fs.exists(outputDir) || !fs.exists(solrItemsSimilaritiesDocsDir)){
+            fs.mkdirs(solrItemsSimilaritiesDocsDir);//will create outputDir too if needed
+        } else {//clean existing ones
+            try {
+                fs.delete(solrItemsSimilaritiesDocsFilePath, true);
+            } catch (Exception e) {
+                LOGGER.info("No docs file yet.");
+            }
         }
     }
 
@@ -102,9 +126,13 @@ public final class WriteToSolrJob extends Configured implements Tool {
         private static final String DEFAULT_CROSS_ITEM_SIMILARITY_FIELD_NAME = "cross_action_similar_items";
         private static final String DEFAULT_ITEM_INDEX_FILENAME = ActionSplitterJob.Options.DEFAULT_ITEM_INDEX_FILENAME;
         private static final String DEFAULT_USER_INDEX_FILENAME = ActionSplitterJob.Options.DEFAULT_USER_INDEX_FILENAME;
+        private static final String DEFAULT_SOLR_ITEM_SIMILARITIES_DOCS_DIR = "item-similarities-docs";
+        private static final String DEFAULT_SOLR_ITEM_SIMILARITIES_DOCS_FILENAME = "item-similarities.csv";
+        private static final String DEFAULT_SOLR_USER_ACTIONS_DOCS_DIR = "user-history-docs";
         private String itemSimilarityMatrixDir;//required
         private String crossSimilarityMatrixDir = "";//optional
-        private String userHistoryMatrixDir;//required
+        private String userAction1HistoryMatrixDir;//required
+        private String userAction2HistoryMatrixDir;//required
         private String indexesDir;//required
         private String userIndexFilePath;
         private String itemIndexFilePath;
@@ -113,8 +141,28 @@ public final class WriteToSolrJob extends Configured implements Tool {
         private String userIdFieldName = DEFAULT_USER_ID_FIELD_NAME;
         private String itemSimilarityFieldName = DEFAULT_ITEM_SIMILARITY_FIELD_NAME;
         private String crossActionSimilarityFieldName = DEFAULT_CROSS_ITEM_SIMILARITY_FIELD_NAME;
+        private String solrItemSimilaritiesDocsDir;//derived from requied output dir
+        private String solrItemsSimilaritiesDocFilePath;//derived from required stuff
+
 
         Options() {
+        }
+
+        public String getUserAction1HistoryMatrixDir() {
+            return userAction1HistoryMatrixDir;
+        }
+
+        @Option(name = "-ua1", aliases = {"--userAction1MatrixDir"}, usage = "Input directory containing the Mahout DistributedRowMatrix with users' action1 history (optional).", required = false)
+        public void setUserAction1HistoryMatrixDir(String userAction1HistoryMatrixDir) {
+            this.userAction1HistoryMatrixDir = userAction1HistoryMatrixDir;
+        }
+
+        public String getUserAction2HistoryMatrixDir() {
+            return userAction2HistoryMatrixDir;
+        }
+
+        public void setUserAction2HistoryMatrixDir(String userAction2HistoryMatrixDir) {
+            this.userAction2HistoryMatrixDir = userAction2HistoryMatrixDir;
         }
 
         public String getItemIdFieldName() {
@@ -137,7 +185,7 @@ public final class WriteToSolrJob extends Configured implements Tool {
             return itemSimilarityMatrixDir;
         }
 
-        @Option(name = "-ism", aliases = {"--itemSimilarityMatrixDir"}, usage = "Input directory containing the Mahout DistributedRowMatrix containing Item-Item similarities. Will be written to Solr.", required = true)
+        @Option(name = "-ism", aliases = {"--itemSimilarityMatrixDir"}, usage = "Input directory containing the Mahout DistributedRowMatrix with Item-Item similarities.", required = true)
         public void setItemSimilarityMatrixDir(String itemSimilarityMatrixDir) {
             this.itemSimilarityMatrixDir = itemSimilarityMatrixDir;
         }
@@ -146,7 +194,7 @@ public final class WriteToSolrJob extends Configured implements Tool {
             return indexesDir;
         }
 
-        @Option(name = "-ix", aliases = {"--indexDir"}, usage = "Where to get user and item indexes.", required = true)
+        @Option(name = "-ix", aliases = {"--indexDir"}, usage = "Directory containing user and item indexes.", required = true)
         public void setIndexesDir(String indexesDir) {
             this.indexesDir = indexesDir;
             if(this.userIndexFilePath == null)
@@ -159,7 +207,7 @@ public final class WriteToSolrJob extends Configured implements Tool {
             return crossSimilarityMatrixDir;
         }
 
-        @Option(name = "-csm", aliases = {"--crossSimilarityMatrixDir"}, usage = "Input directory containing the Mahout DistributedRowMatrix containing Item-Item cross-action similarities. Will be written to Solr.", required = true)
+        @Option(name = "-csm", aliases = {"--crossSimilarityMatrixDir"}, usage = "Input directory containing the Mahout DistributedRowMatrix with Item-Item cross-action similarities.", required = true)
         public void setCrossSimilarityMatrixDir(String crossSimilarityMatrixDir) {
             this.crossSimilarityMatrixDir = crossSimilarityMatrixDir;
         }
@@ -168,7 +216,7 @@ public final class WriteToSolrJob extends Configured implements Tool {
             return userIndexFilePath;
         }
 
-        @Option(name = "-uix", aliases = {"--userIndex"}, usage = "Input directory containing the serialized BiMap of Mahout ID <-> external ID.", required = true)
+        @Option(name = "-uix", aliases = {"--userIndex"}, usage = "Input directory containing the serialized BiMap of Mahout ID <-> external ID (optional, overrides --indexDir). Default: indexDir/user-index.", required = false)
         public void setUserIndexFilePath(String userIndexFilePath) {
             this.userIndexFilePath = userIndexFilePath;
         }
@@ -177,7 +225,7 @@ public final class WriteToSolrJob extends Configured implements Tool {
             return itemIndexFilePath;
         }
 
-        @Option(name = "-iix", aliases = {"--itemIndex"}, usage = "Input directory containing the serialized BiMap of Mahout ID <-> external ID.", required = true)
+        @Option(name = "-iix", aliases = {"--itemIndex"}, usage = "Input directory containing the serialized BiMap of Mahout ID <-> external ID (optional, overrides --indexDir). Default: indexDir/item-index", required = false)
         public void setItemIndexFilePath(String itemIndexFilePath) {
             this.itemIndexFilePath = itemIndexFilePath;
         }
@@ -186,11 +234,21 @@ public final class WriteToSolrJob extends Configured implements Tool {
             return outputDir;
         }
 
-        @Option(name = "-o", aliases = {"--output"}, usage = "Where to write docs of ids for indexing.", required = true)
+        @Option(name = "-o", aliases = {"--output"}, usage = "Where to write docs of ids for indexing. Danger: will be cleaned before writing!", required = true)
         public void setOutputDir(String outputDir) {
             this.outputDir = outputDir;
+            this.solrItemSimilaritiesDocsDir = new Path(new Path(this.outputDir), DEFAULT_SOLR_ITEM_SIMILARITIES_DOCS_DIR).toString();
+            this.solrItemsSimilaritiesDocFilePath = new Path(this.solrItemSimilaritiesDocsDir, DEFAULT_SOLR_ITEM_SIMILARITIES_DOCS_FILENAME).toString();
+
         }
 
+        public String getSolrItemSimilaritiesDocsDir() {
+            return solrItemSimilaritiesDocsDir;
+        }
+
+        public String getSolrItemsSimilaritiesDocFilePath() {
+            return solrItemsSimilaritiesDocFilePath;
+        }
 /* not needed?
         @Option(name = "-t", aliases = {"--tempDir"}, usage = "Place for intermediate data. Things left after the jobs but erased before starting new ones.", required = false)
         public void setTempDir(String tempDir) {

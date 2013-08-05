@@ -111,7 +111,7 @@ public class ActionSplitterJob extends Configured implements Tool {
                 String externalItemIDString = columns[options.getItemIdColumn()].trim();
                 String actionString = columns[options.getActionColumn()].trim();
 
-                // create a bi-directional index of enternal->internal ids
+                // create a bi-directional index of external->internal ids
                 String internalUserID;
                 String internalItemID;
                 if (this.userIndex.containsKey(externalUserIDString)) {// already in the user index

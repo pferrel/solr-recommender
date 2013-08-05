@@ -4,7 +4,8 @@
  Copyright Finderbots
 -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>finderbots</groupId>
     <version>0.1-SNAPSHOT</version>
@@ -78,8 +79,25 @@
                 <enabled>false</enabled>
             </releases>
         </repository>
+        <repository>
+            <id>Conjars</id>
+            <name>Cascading repository</name>
+            <url>http://conjars.org/repo</url>
+        </repository>
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>central</id>
+            <name>third-party-releases</name>
+            <url>http://repo.jfrog.org/artifactory/third-party-releases</url>
+        </repository>
+        <repository>
+            <id>Bixo</id>
+            <name>Bixo GitHub repository</name>
+            <url>http://bixo.github.com/repo/</url>
+        </repository>
     </repositories>
-
     <dependencies>
 
         <!-- Mahout/Apache modules -->
@@ -139,5 +157,5 @@
             <version>12.0</version>
         </dependency>
 
-   </dependencies>
+    </dependencies>
 </project>

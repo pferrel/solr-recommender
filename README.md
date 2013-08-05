@@ -14,7 +14,7 @@ This will build the job jar with all dependencies in ./target/solr-recommender-0
 
 There is a sample script for running the job in scripts/solr-recommender. To get a trivial sample output go to the solr-recommender/scripts directory and run:
 ```
-~$ ./solr-Recommender
+~$ ./solr-recommender
 ```
 This will use simple sample data from the project and create sample output in project root dir.
 
@@ -129,12 +129,12 @@ The concept behind this is based on the fact that when preferences are taken fro
 This first cut creates and requires unified item ids across both B and A but there is no theoretical or mathematical requirement for this and there are some interesting use cases that use different item IDs. Therefor this can be used in cases where the same user takes two different actions and you want to use them both to recommend the primary action. For example users' purchases can be used to recommend thing a given user might want to purchase and users' views can be used to recommend purchases. Adding the two recommendation lists may well yield better recommendations than either alone.
 
 ```
-A = matrix of action2 by user, used for cross-action recommendations for instance views.
-B = matrix of action1 by user, these are the primary recommenders actions for instance purchases.
+A = matrix of action2 by user, used for cross-action recommendations for example views.
+B = matrix of action1 by user, these are the primary recommenders actions for example purchases.
 H_a1 = all user history for recommendations of action1 in column vectors. This may be all action1's recorded and so may = B' or it may have truncated history to get more recent activity in recs.
 H_a2 = all user history for recommendations of action2 in column vectors. This may be all action2's recorded and so may = A' or it may have truncated history to get more recent activity in recs.
 [B'B]H_a1 = R_a1, recommendations from action1. Recommendation are for action1.
-[B'A]H_a2 = R_a2, recommendations from action2 (where there was also an action1). Cross-recommendations are for action1.
+[B'A]H_a2 = R_a2, recommendations from action2 where there was also an action1. Cross-recommendations are for action1.
 R_a1+ R_a2 = R, assumes a non-weighted linear combination, ideally they are weighted to optimize results.
 ```
 
@@ -142,7 +142,7 @@ R_a1+ R_a2 = R, assumes a non-weighted linear combination, ideally they are weig
 
 Happy path works, creating the two similarity matrixes for moving to Solr, but many other options are not yet supported or tested.
 
-1. Solr is not integrated yet.
+1. Solr output not implemented yet, will be a csv of fields, one for the item ID, one for the [B'B] contents, one for the [B'A] contents. Also the user history B and A matrices will be written as a docs with fields for item ID, action1 history and action2 history.
 2. not all options are accepted by the main driver nor are they forwarded to the sub jobs properly. These need to be checked.
 3. input log files are of default config in the resources so other formats need to be tested.
-4. the only test is to hand run and check by eyeball using the supplied the bash script, this should be a unit test with output verification.
+4. the only test is to hand run and check by eye using the supplied the bash script, this should be a unit test with output verification.
