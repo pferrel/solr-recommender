@@ -138,8 +138,45 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
                 "--secondaryPrefs", action2PrefsPath,
             });
         }
-        moveMatrices();
+
+        Path bBSimilarityMatrixDRM = new Path(options.getPrimarySimilarityMatrixPath());
+        Path bASimilarityMatrixDRM = new Path(options.getSecondarySimilarityMatrixPath());
+        Path primaryActionDRM = new Path(new Path(options.getPrimaryTempDir(), RecommenderJob.DEFAULT_PREPARE_DIR), PreparePreferenceMatrixJob.USER_VECTORS);
+        Path secondaryActionDRM = new Path(new Path(options.getSecondaryTempDir(), XRecommenderJob.DEFAULT_PREPARE_DIR), PrepareActionMatricesJob.USER_VECTORS_A);
+
+        if(options.getDoXRecommender()){
+            //Next step is to take the history and similarity matrices, join them by id and write to solr docs
+            ToolRunner.run(getConf(), new WriteToSolrJob(), new String[]{
+                "--itemCrossSimilarityMatrixDir", bASimilarityMatrixDRM.toString(),
+                "--indexDir", indexesPath.toString(),
+                "--itemSimilarityMatrixDir", bBSimilarityMatrixDRM.toString(),
+                "--usersPrimaryHistoryDir", primaryActionDRM.toString(),
+                "--usersSecondaryHistoryDir", secondaryActionDRM.toString(),
+                "--output", options.getOutputDir(),
+            });
+        } else {
+            ToolRunner.run(getConf(), new WriteToSolrJob(), new String[]{
+                "--indexDir", indexesPath.toString(),
+                "--itemSimilarityMatrixDir", bBSimilarityMatrixDRM.toString(),
+                "--usersPrimaryHistoryDir", primaryActionDRM.toString(),
+                "--output", options.getOutputDir(),
+            });
+        }
+
+        /*
+        ToolRunner.run(getConf(), new WriteToSolrJob(), new String[]{
+            "--itemCrossSimilarityMatrixDir", "../out/s-recs/sims",
+            "--indexDir", "../out/id-indexes",
+            "--itemSimilarityMatrixDir", "../out/p-recs/sims",
+            "--usersPrimaryHistoryDir", "../out/actions/p-action",
+            "--usersSecondaryHistoryDir", "../out/actions/s-action",
+            "--output", "../out",
+        });
+        */
+
         //move user history and similarity matrices
+        //move stuff out of temp for now, may not need all these
+        moveMatrices();
 
         return 0;
     }
