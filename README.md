@@ -147,9 +147,9 @@ R_a1+ R_a2 = R, assumes a non-weighted linear combination, ideally they are weig
 
 ## TBD
 
-Happy path works, creating the two HFS part file directories of text files for indexing by Solr, but many other options are not yet supported or tested.
+Happy path works, creating the two HFS part file directories of text files for indexing by Solr. Many other options are not yet supported or tested.
 
-1. Solr working but indexing not tested.
+1. Output to Solr docs is working but indexing not tested. If someone want to try, the fields should be of type 'string' to avoid stop word detection and some other things in Lucene that are not desired in this case.
 2. not all options are accepted by the main driver nor are they forwarded to the sub jobs properly. These need to be checked.
 3. input log files are of default config in the resources so other formats need to be tested.
 4. the only test is to hand run and check by eye using the supplied the bash script, this should be a unit test with output verification.
