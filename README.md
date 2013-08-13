@@ -7,7 +7,7 @@ Recommender using Solr, works online by supplying user history as the query and 
 
 To compile the sources download, build, and install the lastest snapshot of Mahout from http://mahout.apache.org. Then go to the root of this project and run
 ```
-~$ mvn clean install
+~$ mvn install
 ```
 
 This will build the job jar with all dependencies in ./target/solr-recommender-0.1-SNAPSHOT-job.jar. The various tasks inside the jar are described below. Each CLI accessible job comes with a fairly complete description of its parameters printed out by running with no parameters.
@@ -89,6 +89,13 @@ The job takes a directory, which is searched recursively for files matching the 
 
 ```
 output
+  |-- item-links-docs [B'B] and [B'A] are joined by item id in these output files. They are HFS part files in CSV text format.
+  |                   A header is included on each part that describes the solr fields
+  |-- user-history-docs B and A are joined by user id in these output files. They are HFS part files in CSV text format.
+  |                   A header is included on each part that describes the solr fields
+  |-- actions
+  |     |-- p-action DRM containing user history for the primary action
+  |     \-- s-action DRM containing user history for the secondary action
   |-- id-indexes
   |     |-- item-index serialized BiHashMap of items for all actions and users, externalIDString <-> internalIDInt
   |     |-- user-index serialized BiHashMap of users for all actions and items, externalIDString <-> internalIDInt
@@ -140,9 +147,10 @@ R_a1+ R_a2 = R, assumes a non-weighted linear combination, ideally they are weig
 
 ## TBD
 
-Happy path works, creating the two similarity matrixes for moving to Solr, but many other options are not yet supported or tested.
+Happy path works, creating the two HFS part file directories of text files for indexing by Solr, but many other options are not yet supported or tested.
 
-1. Solr output not implemented yet, will be a csv of fields, one for the item ID, one for the [B'B] contents, one for the [B'A] contents. Also the user history B and A matrices will be written as a docs with fields for item ID, action1 history and action2 history.
+1. Solr working but indexing not tested.
 2. not all options are accepted by the main driver nor are they forwarded to the sub jobs properly. These need to be checked.
 3. input log files are of default config in the resources so other formats need to be tested.
 4. the only test is to hand run and check by eye using the supplied the bash script, this should be a unit test with output verification.
+5. Only 2 actions are working at present. The --xRecommend option is needed with two types of actions.
