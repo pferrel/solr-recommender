@@ -42,7 +42,7 @@ import java.util.Map;
  * the indexes may be identical.
  */
 
-public class JoinDRMsWriteToSolr {
+public class WriteDRMsToSolr {
     private static Logger LOGGER = Logger.getRootLogger();
 
     FileSystem fs;
@@ -55,25 +55,29 @@ public class JoinDRMsWriteToSolr {
     Fields inFieldsDRM2;
     Fields common;
     Fields grouped;
-    Fields outFields;
+    Fields joinedOutFields;
+    Fields simpleOutFields;
 /* example fields passed in:
         fields.put("iD1", options.getItemIdFieldName());
         fields.put("dRM1FieldName", options.getBTranposeBFieldName());
         fields.put("dRM2FieldName", options.getBTransposeAFieldName());
 
  */
-    JoinDRMsWriteToSolr(Map<String, String> fields) throws IOException {
+    WriteDRMsToSolr(Map<String, String> fields) throws IOException {
         Configuration conf = new JobConf();
         fs = FileSystem.get(conf);
         iDFieldName = fields.get("iD1");
-        iD2FieldName = iDFieldName+"2";//just to uniqueify it from the other id field name
         dRM1FieldName = fields.get("dRM1FieldName");
-        dRM2FieldName = fields.get("dRM2FieldName");
         inFieldsDRM1 = new Fields(iDFieldName, dRM1FieldName);
-        inFieldsDRM2 = new Fields(iDFieldName, dRM2FieldName);
-        common = new Fields(iDFieldName);
-        grouped = new Fields(iDFieldName, dRM1FieldName, iD2FieldName, dRM2FieldName);
-        outFields = new Fields(iDFieldName, dRM1FieldName, dRM2FieldName);
+        simpleOutFields = new Fields(iDFieldName, dRM1FieldName);
+        if(fields.containsKey("dRM2FieldName")){//joining DRMs so defined needed fields
+            iD2FieldName = iDFieldName+"2";//just to uniqueify it from the other id field name
+            dRM2FieldName = fields.get("dRM2FieldName");
+            inFieldsDRM2 = new Fields(iDFieldName, dRM2FieldName);
+            common = new Fields(iDFieldName);
+            grouped = new Fields(iDFieldName, dRM1FieldName, iD2FieldName, dRM2FieldName);
+            joinedOutFields = new Fields(iDFieldName, dRM1FieldName, dRM2FieldName);
+        }
     }
 
     void joinDRMsWriteToSolr(Path iDIndexPath, Path itemIndexPath, Path dRM1InputPath , Path dRM2InputPath, Path groupedCSVOutputPath) throws IOException {
@@ -83,13 +87,15 @@ public class JoinDRMsWriteToSolr {
         Pipe lhs = new Pipe("DRM1");
         Pipe rhs = new Pipe("DRM2");
         Pipe groupByItemIDPipe = new CoGroup(lhs, common, rhs, common, grouped, new InnerJoin());
-        groupByItemIDPipe = new Each(groupByItemIDPipe, new VectorsToCSVFunction(outFields));
-        //the DRMs (Mahout Distributed Row Matrixes) have row and items indexes the two dictionary BiHashMaps
+        groupByItemIDPipe = new Each(groupByItemIDPipe, new VectorsToCSVFunction(joinedOutFields));
+        //the DRMs (Mahout Distributed Row Matrices) have row and items indexes the two dictionary BiHashMaps
         //pass these to the output function so the strings from the indexes can be written instead of the
         //binary values of the Keys and Vectors in the DRMs
         groupByItemIDPipe.getStepConfigDef().setProperty("itemIndexPath", itemIndexPath.toString());
         // for these matrices the group by key is the id from the Mahout row key
         groupByItemIDPipe.getStepConfigDef().setProperty("rowIndexPath", iDIndexPath.toString());
+        groupByItemIDPipe.getStepConfigDef().setProperty("joining", "true");
+
         Tap groupedOutputSink = new Hfs(new TextDelimited(true,","), groupedCSVOutputPath.toString());
 
         FlowDef flowDef = new FlowDef()
@@ -97,6 +103,29 @@ public class JoinDRMsWriteToSolr {
             .addSource(lhs, dRM1Source)
             .addSource(rhs, dRM2Source)
             .addTailSink(groupByItemIDPipe, groupedOutputSink);
+        Flow flow = new HadoopFlowConnector().connect(flowDef);
+        flow.complete();
+
+        //todo: not sure if it matters but may need to rename the part files to .csv
+    }
+
+    void writeDRMToSolr(Path iDIndexPath, Path itemIndexPath, Path dRM1InputPath, Path cSVOutputPath) throws IOException {
+        MultiSourceTap dRM1Source = getTaps(dRM1InputPath, inFieldsDRM1);
+
+        Pipe dRM1 = new Pipe("DRM1");
+        dRM1 = new Each(dRM1, new VectorsToCSVFunction(simpleOutFields));
+        //the DRM (Mahout Distributed Row Matrix) has row and items indexes the two dictionary BiHashMaps
+        //pass these to the output function so the strings from the indexes can be written instead of the
+        //binary values of the Keys and Vectors in the DRMs
+        dRM1.getStepConfigDef().setProperty("itemIndexPath", itemIndexPath.toString());
+        dRM1.getStepConfigDef().setProperty("rowIndexPath", iDIndexPath.toString());
+        dRM1.getStepConfigDef().setProperty("joining", "false");
+        Tap outputSink = new Hfs(new TextDelimited(true,","), cSVOutputPath.toString());
+
+        FlowDef flowDef = new FlowDef()
+            .setName("convert-to-CSV")
+            .addSource(dRM1, dRM1Source)
+            .addTailSink(dRM1, outputSink);
         Flow flow = new HadoopFlowConnector().connect(flowDef);
         flow.complete();
 

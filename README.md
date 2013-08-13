@@ -156,4 +156,24 @@ Happy path works, creating the two HFS part file directories of text files for i
 2. not all options are accepted by the main driver nor are they forwarded to the sub jobs properly. These need to be checked.
 3. input log files are of default config in the resources so other formats need to be tested.
 4. the only test is to hand run and check by eye using the supplied the bash script, this should be a unit test with output verification.
-5. Only 2 actions are working at present. The --xRecommend option is needed with two types of actions.
+
+##Notes
+1. 1 or 2 actions are working. The --xRecommend option is needed with two types of actions. To get only RecommenderJob type output to Solr execute the following from solr-recommender/scripts:
+```
+~$ hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar \
+       finderbots.recommenders.hadoop.RecommenderUpdateJob \
+       --input ../src/test/resources/logged-preferences/ \
+       --inputFilePattern ".tsv" \
+       --output ../out \
+       --tempDir ../tmp
+```
+This assumes default values for action names etc. See the complete option list. To get cross-recommendations perform the following from solr-recommender/scripts:
+```
+~$ hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar \
+       finderbots.recommenders.hadoop.RecommenderUpdateJob \
+       --input ../src/test/resources/logged-preferences/ \
+       --inputFilePattern ".tsv" \
+       --output ../out \
+       --tempDir ../tmp \
+       --xRecommend
+```

@@ -54,23 +54,7 @@ public class WriteToSolrJob extends Configured implements Tool {
     private static Logger LOGGER = Logger.getRootLogger();
 
     private static Options options;
-    private static BiMap<String, String> userIndex;
-    private static BiMap<String, String> itemIndex;
     FileSystem fs;
-
-    public static BiMap<String, String> getUserIndex() throws Exception {
-        if(userIndex == null){//called before it was read in
-            throw new Exception("The user index BiHashMap is not intantiated yet.");
-        }
-        return userIndex;
-    }
-
-    public static BiMap<String, String> getItemIndex() throws Exception {
-        if(itemIndex == null){//called before it was read in
-            throw new Exception("The item index BiHashMap is not intantiated yet.");
-        }
-        return itemIndex;
-    }
 
     /* This class joins A and B by user ID and writes the data to a set of CSV files with the following headers:
     * id,b_history,a_history
@@ -101,28 +85,43 @@ public class WriteToSolrJob extends Configured implements Tool {
 
         //inputs
         Path bTransposeByMatrixPath = new Path(options.getBTransposeBMatrixDir());
-        Path bTransposeAMatrixPath = new Path(options.getBTransposeAMatrixDir());
         Path bUserHistoryMatrixPath = new Path(options.getBUserHistoryMatrixDir());
-        Path aUserHistoryMatrixPath = new Path(options.getAUserHistoryMatrixDir());
 
         //outputs
         Path solrItemsLinksDocsFilesPath = new Path(options.getSolrItemLinksDocsDir());
         Path solrUserHistoryDocsFilesPath = new Path(options.getSolrUserHistoryDir());
 
+        if(options.getBTransposeAMatrixDir() != null && options.getAUserHistoryMatrixDir() != null){
+            //optional inputs
+            Path bTransposeAMatrixPath = new Path(options.getBTransposeAMatrixDir());
+            Path aUserHistoryMatrixPath = new Path(options.getAUserHistoryMatrixDir());
 
-        fields.put("iD1", options.getItemIdFieldName());
-        fields.put("dRM1FieldName", options.getBTranposeBFieldName());
-        fields.put("dRM2FieldName", options.getBTransposeAFieldName());
-        JoinDRMsWriteToSolr join = new JoinDRMsWriteToSolr(fields);
-        join.joinDRMsWriteToSolr(itemIndexPath, itemIndexPath, bTransposeByMatrixPath, bTransposeAMatrixPath, solrItemsLinksDocsFilesPath);
 
-        fields.clear();
-        fields.put("iD1", options.getUserIdFieldName());
-        fields.put("dRM1FieldName", options.getBUserHistoryFieldName());
-        fields.put("dRM2FieldName", options.getAUserHistoryFieldName());
-        join = new JoinDRMsWriteToSolr(fields);
-        join.joinDRMsWriteToSolr(userIndexPath, itemIndexPath, bUserHistoryMatrixPath, aUserHistoryMatrixPath, solrUserHistoryDocsFilesPath);
 
+            fields.put("iD1", options.getItemIdFieldName());
+            fields.put("dRM1FieldName", options.getBTranposeBFieldName());
+            fields.put("dRM2FieldName", options.getBTransposeAFieldName());
+            WriteDRMsToSolr join = new WriteDRMsToSolr(fields);
+            join.joinDRMsWriteToSolr(itemIndexPath, itemIndexPath, bTransposeByMatrixPath, bTransposeAMatrixPath, solrItemsLinksDocsFilesPath);
+
+            fields.clear();
+            fields.put("iD1", options.getUserIdFieldName());
+            fields.put("dRM1FieldName", options.getBUserHistoryFieldName());
+            fields.put("dRM2FieldName", options.getAUserHistoryFieldName());
+            join = new WriteDRMsToSolr(fields);
+            join.joinDRMsWriteToSolr(userIndexPath, itemIndexPath, bUserHistoryMatrixPath, aUserHistoryMatrixPath, solrUserHistoryDocsFilesPath);
+        } else { //only using B actions so no CoGroup join required
+            fields.put("iD1", options.getItemIdFieldName());
+            fields.put("dRM1FieldName", options.getBTranposeBFieldName());
+            WriteDRMsToSolr join = new WriteDRMsToSolr(fields);
+            join.writeDRMToSolr(itemIndexPath, itemIndexPath, bTransposeByMatrixPath, solrItemsLinksDocsFilesPath);
+
+            fields.clear();
+            fields.put("iD1", options.getUserIdFieldName());
+            fields.put("dRM1FieldName", options.getBUserHistoryFieldName());
+            join = new WriteDRMsToSolr(fields);
+            join.writeDRMToSolr(userIndexPath, itemIndexPath, bUserHistoryMatrixPath, solrUserHistoryDocsFilesPath);
+        }
         return 0;
     }
 

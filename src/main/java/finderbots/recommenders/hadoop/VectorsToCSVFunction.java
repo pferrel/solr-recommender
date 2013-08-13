@@ -44,22 +44,23 @@ public class VectorsToCSVFunction extends BaseOperation implements Function {
         TupleEntry arguments = functionCall.getArguments();
         // get the context for this grouping
         // update the context object
-        // if there are not four elements in the args, we have an error
-        if(arguments.size() != 4){
-            LOGGER.warn("Joining rows from the DRM found too many matching row IDs, something is unexpected in the data.");
-        }
-        int key = arguments.getInteger(JoinDRMsWriteToSolr.getiDFieldName());
-        int keyB = arguments.getInteger(JoinDRMsWriteToSolr.getiDFieldName());
+        int key = arguments.getInteger(WriteDRMsToSolr.getiDFieldName());
+        int keyB = arguments.getInteger(WriteDRMsToSolr.getiDFieldName());
         try {
+            String doJoinString = (String)flowProcess.getProperty("joining");
             String itemIDString = rowIndex.inverse().get(String.valueOf(key));
-            String keyBString = rowIndex.inverse().get(String.valueOf(keyB));
-            Vector va = ((VectorWritable)arguments.getObject(JoinDRMsWriteToSolr.getdRM1FieldName())).get();
-            Vector vb = ((VectorWritable)arguments.getObject(JoinDRMsWriteToSolr.getDRM2FieldName())).get();
-            String vaDoc = createDoc(va, itemIndex);
-            String vaOrdered = createOrderedDoc(va,itemIndex);
-            String vbDoc = createDoc(vb, itemIndex);
-            Tuple tuple = new Tuple(itemIDString, vaDoc, vbDoc);
+            Vector va = ((VectorWritable)arguments.getObject(WriteDRMsToSolr.getdRM1FieldName())).get();
+            String vaDoc = createOrderedDoc(va, itemIndex);
+            Tuple tuple;
+            if(doJoinString.equals("true")){
+                Vector vb = ((VectorWritable)arguments.getObject(WriteDRMsToSolr.getDRM2FieldName())).get();
+                String vbDoc = createOrderedDoc(vb, itemIndex);
+                tuple = new Tuple(itemIDString, vaDoc, vbDoc);
+            } else { // not joining, just converting to CSV
+                tuple = new Tuple(itemIDString, vaDoc);
+            }
             functionCall.getOutputCollector().add(tuple);
+
         } catch (Exception e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
