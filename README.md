@@ -76,13 +76,13 @@ The RecommenderUpdateJob runs various subjobs, some of which can be run separate
 ## RecommenderUpdateJob
 
 This main task fires off all the subtasks each of which is a separate CLI accessible job. The main sub jobs are:
-1. ActionSplitterJob
-2. RecommenderJob
-2.1 PreparePreferencematrixJob
-3. XrecommenderJob
-3.2 PrepareActionMatricesJob
-4. WriteToSolrJob
-4.1 JoinDRMsWriteToSolr -- not a job but a Cascading flow for mapreduce processing of DRMs into CSVs
+  1. ActionSplitterJob
+  2. RecommenderJob
+  2.1 PreparePreferencematrixJob
+  3. XrecommenderJob
+  3.2 PrepareActionMatricesJob
+  4. WriteToSolrJob
+  4.1 JoinDRMsWriteToSolr -- not a job but a Cascading flow for mapreduce processing of DRMs into CSVs
 
 ## RecommenderUpdateJob Output
 
