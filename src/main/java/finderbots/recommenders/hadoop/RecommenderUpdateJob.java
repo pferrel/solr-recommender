@@ -146,6 +146,16 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
 
         if(options.getDoXRecommender()){
             //Next step is to take the history and similarity matrices, join them by id and write to solr docs
+            LOGGER.info(
+                "\n===========\n\n\n"+
+                "  About to call WriteToSolr with cross-recommendations:\n"+
+                    "    B matrix path: "+primaryActionDRM.toString()+"\n"+
+                    "    A matrix path: "+secondaryActionDRM.toString()+"\n"+
+                    "    [B'B] matrix path: "+bBSimilarityMatrixDRM.toString()+"\n"+
+                    "    [B'A] matrix path: "+bASimilarityMatrixDRM.toString()+"\n"+
+                    "    Output path: "+options.getOutputDir()+"\n"+
+                "\n\n===========\n"
+            );
             ToolRunner.run(getConf(), new WriteToSolrJob(), new String[]{
                 "--itemCrossSimilarityMatrixDir", bASimilarityMatrixDRM.toString(),
                 "--indexDir", indexesPath.toString(),
@@ -155,6 +165,14 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
                 "--output", options.getOutputDir(),
             });
         } else {
+            LOGGER.info(
+                "\n===========\n\n\n"+
+                    "  About to call WriteToSolr with single actions recommendations:\n"+
+                    "    B matrix path: "+primaryActionDRM.toString()+"\n"+
+                    "    [B'B] matrix path: "+bBSimilarityMatrixDRM.toString()+"\n"+
+                    "    Output path: "+options.getOutputDir()+"\n"+
+                    "\n\n===========\n"
+            );
             ToolRunner.run(getConf(), new WriteToSolrJob(), new String[]{
                 "--indexDir", indexesPath.toString(),
                 "--itemSimilarityMatrixDir", bBSimilarityMatrixDRM.toString(),

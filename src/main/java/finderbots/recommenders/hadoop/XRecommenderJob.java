@@ -13,6 +13,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.log4j.Logger;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.math.hadoop.MatrixMultiplicationJob;
 import org.apache.mahout.math.hadoop.TransposeJob;
@@ -50,6 +51,7 @@ import java.util.regex.Pattern;
  * arguments.</p>
  */
 public final class XRecommenderJob extends AbstractJob {
+    private static Logger LOGGER = Logger.getRootLogger();
 
     private static final int DEFAULT_MAX_SIMILARITIES_PER_ITEM = 100;
     private static final int DEFAULT_MAX_PREFS_PER_USER = 1000;
@@ -213,8 +215,21 @@ public final class XRecommenderJob extends AbstractJob {
             "--tempDir", tempPath.toString(),
         });
         */
-        
+        LOGGER.info(
+            "\n===========\n\n\n"+
+            "  Cross-recommender moving output:\n"+
+            "    [B'A] matrix from: "+cooccurrenceMatrixPath.toString()+"\n"+
+            "    [B'A] matrix to: "+similarItemsPath.toString()+"\n"+
+            "    [B'A]A' matrix from: "+recsMatrixPath.toString()+"\n"+
+            "    [B'A]A' matrix to: "+(new Path(getOption("output"), RECS_MATRIX_DIR)).toString()+"\n"+
+            "\n\n===========\n"
+        );
+
         // move [B'A] to the final output location
+        // if the dest path is not created the rename will fail on HDFS (without an exception?)
+        // but will create the full path
+        // on the local FS ??????????? Won't hurt to create on local so doing that now.
+        if(!fs.exists(outputPath)) fs.mkdirs(outputPath);
         fs.rename(cooccurrenceMatrixPath, new Path(similarItemsPath.toString()));
         // now move the recommendations matrix to the output path
         Path outputRecsPath = new Path(getOption("output"), RECS_MATRIX_DIR);

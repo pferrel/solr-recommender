@@ -168,25 +168,43 @@ public class ActionSplitterJob extends Configured implements Tool {
     }
 
     public List<FSDataInputStream> getActionFiles(Path baseInputDir) throws IOException {
-        //this excludes certain hadoop created file in the dirs it looks into
-        //todo: should pass a pattern for identifying files to analyze?
         List<FSDataInputStream> files = new ArrayList<FSDataInputStream>();
         FileSystem fs = baseInputDir.getFileSystem(getConf());
-        if (fs.getFileStatus(baseInputDir).isDir()) {
-            FileStatus[] stats = fs.listStatus(baseInputDir);
-            for (FileStatus fstat : stats) {
-                if (fstat.isDir()) {
-                    files.addAll(getActionFiles(fstat.getPath()));
-                    //todo: this should be done with a regex
-                } else if (
-                    fstat.getPath().getName().contains(options.getInputFilePattern())
-                        && !fstat.isDir()
-                        && !fstat.getPath().getName().startsWith("_")
-                        && !fstat.getPath().getName().startsWith(".")
-                    ) {
-                    files.add(fs.open(fstat.getPath()));
+        try{
+            FileStatus inStat = fs.getFileStatus(baseInputDir);
+            Boolean inputIsDir = inStat.isDir();
+            LOGGER.info("\n======\n\n\n   Input path = "+baseInputDir.toString()+"\n"+
+                                     "   isDir = "+inputIsDir.toString()+"\n\n\n======\n"
+                );
+            if (inputIsDir) {
+                FileStatus[] stats = fs.listStatus(baseInputDir);
+                for (FileStatus fstat : stats) {
+                    if (fstat.isDir()) {
+                        files.addAll(getActionFiles(fstat.getPath()));
+                    } else if(fstat.getPath().getName().matches(options.getInputFilePattern())){
+                        //assume a regex was passed in and check for matches
+                        files.add(fs.open(fstat.getPath()));
+                    } else if(
+                        //assume a simple ".tsv" or other included string was passed in
+                        //exclude system files, like the hadoop created files _SUCCEED, .crc's etc.
+                        fstat.getPath().getName().contains(options.getInputFilePattern())
+                            && !fstat.isDir()
+                            && !fstat.getPath().getName().startsWith("_")
+                            && !fstat.getPath().getName().startsWith(".")
+                            && !fstat.getPath().getName().startsWith("~")
+                        ) {
+                        files.add(fs.open(fstat.getPath()));
+                    }
                 }
+            } else if (// processing a single file as input but exclude system files
+                inStat.getPath().getName().contains(options.getInputFilePattern())) {
+                files.add(fs.open(inStat.getPath()));
+            } else {// doesn't match any input pattern so no input
+                throw new IOException("No input to process at: "+baseInputDir.toString());
             }
+        } catch (IOException e){
+            LOGGER.error("Cannot find base of input file tree for: "+baseInputDir.toString());
+            throw e;
         }
         return files;
     }

@@ -44,16 +44,17 @@ public class VectorsToCSVFunction extends BaseOperation implements Function {
         TupleEntry arguments = functionCall.getArguments();
         // get the context for this grouping
         // update the context object
-        int key = arguments.getInteger(WriteDRMsToSolr.getiDFieldName());
-        int keyB = arguments.getInteger(WriteDRMsToSolr.getiDFieldName());
+        //int key = arguments.getInteger(WriteDRMsToSolr.getiDFieldName());
+        int key = arguments.getInteger(arguments.getFields().get(0));
+        int keyB = arguments.getInteger(arguments.getFields().get(2));
         try {
             String doJoinString = (String)flowProcess.getProperty("joining");
             String itemIDString = rowIndex.inverse().get(String.valueOf(key));
-            Vector va = ((VectorWritable)arguments.getObject(WriteDRMsToSolr.getdRM1FieldName())).get();
+            Vector va = ((VectorWritable)arguments.getObject(arguments.getFields().get(1))).get();
             String vaDoc = createOrderedDoc(va, itemIndex);
             Tuple tuple;
             if(doJoinString.equals("true")){
-                Vector vb = ((VectorWritable)arguments.getObject(WriteDRMsToSolr.getDRM2FieldName())).get();
+                Vector vb = ((VectorWritable)arguments.getObject(arguments.getFields().get(3))).get();
                 String vbDoc = createOrderedDoc(vb, itemIndex);
                 tuple = new Tuple(itemIDString, vaDoc, vbDoc);
             } else { // not joining, just converting to CSV

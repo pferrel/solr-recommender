@@ -138,7 +138,8 @@ public class WriteDRMsToSolr {
         ArrayList<Tap> all = new ArrayList<Tap>();
         if(stats != null){
             for( FileStatus s : stats ){
-                if(s.getPath().toString().contains("part-")){//found a part-xxxxx file
+                //if(s.getPath().toString().contains("part-")){//found a part-xxxxx file
+                if(s.getPath().getName().matches("^part.*")){//found a part-xxxxx file
                     Path filePath = new Path(s.getPath().toString());
                     //Tap t = new Hfs( inFields, filePath.toString());
                     //Tap t = new Hfs(new TextLine(), filePath.toString(), true);
@@ -150,7 +151,7 @@ public class WriteDRMsToSolr {
             }
         }
         Tap[] sourceTaps = all.toArray(new Tap[all.size()]);
-        if(sourceTaps.length == 0 ) throw new IOException("No Source files found");
+        if(sourceTaps.length == 0 ) throw new IOException("No Source files found at: "+p.toString());
         MultiSourceTap source = new MultiSourceTap(sourceTaps);
 
         return source;
