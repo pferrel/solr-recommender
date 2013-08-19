@@ -11,6 +11,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
+import org.apache.mahout.common.Pair;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
 
@@ -88,28 +89,30 @@ public class VectorsToCSVFunction extends BaseOperation implements Function {
     private String createOrderedDoc( Vector v, BiMap<String, String> elementIndex){
         String doc = new String("");
         //sort the vector by element weight
-        class VectorElementComparator implements Comparator<Vector.Element> {
+        class VectorElementComparator implements Comparator<Pair<Integer,Double>> {
 
             @Override
-            public int compare(Vector.Element o1, Vector.Element o2) {
-                return (o1.get() > o2.get() ? -1 : (o1.equals(o2) ? 0 : 1));
+            public int compare(Pair<Integer,Double> o1, Pair<Integer,Double> o2) {
+                return (o1.getSecond() > o2.getSecond() ? -1 : (o1.equals(o2) ? 0 : 1));
             }
         }
 
-        ArrayList<Vector.Element> vel = new ArrayList<Vector.Element>();
-        for(Vector.Element ve : v.nonZeroes()) vel.add(ve);
-        Collections.sort(vel, new VectorElementComparator());
-        for(Vector.Element ve : vel){
-            int i = ve.index();
+        ArrayList<Pair<Integer,Double>> itemList = new ArrayList<Pair<Integer,Double>>();
+        for(Vector.Element ve : v.nonZeroes()){
+            Pair<Integer,Double> item = new Pair<Integer, Double>(ve.index(),ve.get());
+            itemList.add(item);
+        }
+        Collections.sort(itemList, new VectorElementComparator());
+        for(Pair<Integer,Double> item : itemList){
+            int i = item.getFirst();
             String s = String.valueOf(i);
             String exID = elementIndex.inverse().get(s);
-            String intID = elementIndex.get(s);
             doc += exID+" ";
         }
         return doc;
     }
 
-
+    //Don't use for DRMs because the vectors are not sorted and the docs should have terms ordered by strength
     String createDoc(Vector v, HashBiMap<String,String> index){
         String doc = "";
         for(Vector.Element ve : v.nonZeroes()){
