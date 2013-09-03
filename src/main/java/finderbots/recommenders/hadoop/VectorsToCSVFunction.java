@@ -41,13 +41,8 @@ public class VectorsToCSVFunction extends BaseOperation implements Function {
 
     public void operate( FlowProcess flowProcess, FunctionCall functionCall )
     {
-        // get the current argument values
         TupleEntry arguments = functionCall.getArguments();
-        // get the context for this grouping
-        // update the context object
-        //int key = arguments.getInteger(WriteDRMsToSolr.getiDFieldName());
         int key = arguments.getInteger(arguments.getFields().get(0));
-        int keyB = arguments.getInteger(arguments.getFields().get(2));
         try {
             String doJoinString = (String)flowProcess.getProperty("joining");
             String itemIDString = rowIndex.inverse().get(String.valueOf(key));

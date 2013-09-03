@@ -14,6 +14,7 @@ import org.apache.mahout.cf.taste.hadoop.item.ItemIDIndexReducer;
 import org.apache.mahout.cf.taste.hadoop.item.RecommenderJob;
 import org.apache.mahout.cf.taste.hadoop.item.ToUserVectorsReducer;
 import org.apache.mahout.cf.taste.hadoop.preparation.ToItemVectorsMapper;
+import org.apache.mahout.cf.taste.hadoop.preparation.ToItemVectorsReducer;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.math.VarIntWritable;

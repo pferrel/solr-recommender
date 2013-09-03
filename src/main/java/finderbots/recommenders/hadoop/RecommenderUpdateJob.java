@@ -100,6 +100,8 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
             "--output", prefsPath.toString(),
             "--indexDir", indexesPath.toString(),
             "--inputFilePattern", options.getFileNamePatternString(),
+            "--action1", options.getAction1(),
+            "--action2", options.getAction2(),
         });
 
         // need to get the number of users and items from the splitter, which also creates indexes

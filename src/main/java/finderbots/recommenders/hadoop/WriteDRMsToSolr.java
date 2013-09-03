@@ -57,12 +57,7 @@ public class WriteDRMsToSolr {
     Fields grouped;
     Fields joinedOutFields;
     Fields simpleOutFields;
-/* example fields passed in:
-        fields.put("iD1", options.getItemIdFieldName());
-        fields.put("dRM1FieldName", options.getBTranposeBFieldName());
-        fields.put("dRM2FieldName", options.getBTransposeAFieldName());
 
- */
     WriteDRMsToSolr(Map<String, String> fields) throws IOException {
         Configuration conf = new JobConf();
         fs = FileSystem.get(conf);
