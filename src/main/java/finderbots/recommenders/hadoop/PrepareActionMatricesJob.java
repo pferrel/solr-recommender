@@ -116,7 +116,8 @@ public final class PrepareActionMatricesJob extends AbstractJob {
         toItemVectors.setCombinerClass(ToItemVectorsReducer.class);
 
         /* configure sampling regarding the uservectors */
-        /* Downsampling removed until mahout 0.9 integration
+        /* Downsampling removed since it was moved to RowSimilarityJob in Mahout
+        /* the XRecommender uses matrix math currently, not a hypothetical CrossSimilarityJob
             if (hasOption("maxPrefsPerUser")) {
 
             int samplingSize = Integer.parseInt(getOption("maxPrefsPerUser"));

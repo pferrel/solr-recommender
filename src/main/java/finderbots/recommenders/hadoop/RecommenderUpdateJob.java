@@ -52,6 +52,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
+import org.apache.mahout.cf.taste.hadoop.item.RecommenderJob;
 import org.apache.mahout.cf.taste.hadoop.preparation.PreparePreferenceMatrixJob;
 import org.apache.mahout.common.HadoopUtil;
 import org.kohsuke.args4j.CmdLineException;
@@ -122,6 +123,7 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
             "--similarityClassname", options.getSimilairtyType(),
             //need the seqfile for the similarity matrix even if output to Solr, this job puts it in the temp dir.
             "--tempDir", options.getPrimaryTempDir(),
+            "--sequencefileOutput"
         });
         //Now move the similarity matrix to the p-recs/sims location rather than leaving is in the tmp dir
         //this will be written to Solr if specified in the options.
@@ -143,7 +145,7 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
 
         Path bBSimilarityMatrixDRM = new Path(options.getPrimarySimilarityMatrixPath());
         Path bASimilarityMatrixDRM = new Path(options.getSecondarySimilarityMatrixPath());
-        Path primaryActionDRM = new Path(new Path(options.getPrimaryTempDir(), RecommenderJob.DEFAULT_PREPARE_DIR), PreparePreferenceMatrixJob.USER_VECTORS);
+        Path primaryActionDRM = new Path(new Path(options.getPrimaryTempDir(), RecommenderJob.DEFAULT_PREPARE_PATH), PreparePreferenceMatrixJob.USER_VECTORS);
         Path secondaryActionDRM = new Path(new Path(options.getSecondaryTempDir(), XRecommenderJob.DEFAULT_PREPARE_DIR), PrepareActionMatricesJob.USER_VECTORS_A);
 
         if(options.getDoXRecommender()){
@@ -248,7 +250,7 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
         Path to = new Path(options.getPrimaryOutputDir(), XRecommenderJob.SIMS_MATRIX_DIR);//steal the dir name from Xrec
         fs.rename(from, to);
         //move the primary user action matrix to output
-        from = new Path(new Path(options.getPrimaryTempDir(), RecommenderJob.DEFAULT_PREPARE_DIR), PreparePreferenceMatrixJob.USER_VECTORS);
+        from = new Path(new Path(options.getPrimaryTempDir(), RecommenderJob.DEFAULT_PREPARE_PATH), PreparePreferenceMatrixJob.USER_VECTORS);
         to = new Path(options.getOutputDir(), options.getPrimaryActionHistoryDir());
         fs.rename(from, to);
         //if it was created move the secondary user action matrix to output

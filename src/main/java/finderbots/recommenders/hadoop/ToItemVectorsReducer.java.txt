@@ -1,3 +1,5 @@
+no longer required after changes to mahout
+
 package finderbots.recommenders.hadoop;
 
 /**
