@@ -103,6 +103,8 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
             "--inputFilePattern", options.getFileNamePatternString(),
             "--action1", options.getAction1(),
             "--action2", options.getAction2(),
+            "--inputDelim", options.getInputDelim(),
+            "--outputDelim", options.getOutputDelim(),
         });
 
         // need to get the number of users and items from the splitter, which also creates indexes
@@ -302,6 +304,8 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
         public static final String ROOT_SIMS_DIR = "sims";//defined as a quoted String in mahout
         private static final String DEFAULT_FILE_PATTERN = "part-";
 
+        private static final String DEFAULT_DELIMITER = "\t";
+
         private int timestampColumn = DEFAULT_TIMESTAMP_COLUMN;
         private int userIDColumn = DEFAULT_UESERID_COLUMN;
         private int actionColumn = DEFAULT_ACTION_COLUMN;
@@ -319,6 +323,9 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
         private String indexesDir = DEFAULT_INDEXES_DIR;
         private String primaryActionHistoryDir;
         private String secondaryActionHistoryDir;
+        private String inputDelimiter = DEFAULT_DELIMITER;
+        private String outputDelimiter = DEFAULT_DELIMITER;
+
 
         Options() {
             //these are relative to the output path
@@ -389,6 +396,16 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
         @Option(name = "-s", aliases = {"--similarityType"}, usage = "Similarity measure to use. Default SIMILARITY_LOGLIKELIHOOD. Note: this is only used for primary recs and secondary item similarities.", required = false)
         public void setSimilairtyType(String similairtyType) {
             this.similairtyType = similairtyType;
+        }
+
+        @Option(name = "-id", aliases = {"--inputDelim"}, usage = "Assigned delimiter of input file", required = false)
+        public void setInputDelim(String delim) {
+            this.inputDelimiter = delim;
+        }
+
+        @Option(name = "-od", aliases = {"--outputDelim"}, usage = "Assigned delimiter of output file", required = false)
+        public void setOutputDelim(String delim) {
+            this.outputDelimiter = delim;
         }
 
         public String getPrimaryActionHistoryDir() {
@@ -481,6 +498,14 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
 
         public int getTimestampColumn() {
             return timestampColumn;
+        }
+
+        public String getInputDelim() {
+            return inputDelimiter; 
+        }
+
+        public String getOutputDelim() {
+            return inputDelimiter; 
         }
 
         //todo: ignored so this is a stub. May wish to order perfs by timestamp before downsampling/truncating history
