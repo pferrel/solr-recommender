@@ -10,9 +10,36 @@ Recommender using Solr for recommendation queries and Mahout to generate trainin
 * Encodes user history in CSV files with one row per user (user id) and items for a given action in columns (item ids).
 * Once indexed by Solr (outside the scope of this project) using a user's action history as a query on the item similarity matrix will yield recommendations as an ordered list of results.
 
+## Usage Scenario
+
+A collaborative filtering type recommender takes
+user-id, item-id, preference-weight
+
+the Solr-recommender takes:
+user-id (string usually), item-id (likewise a string), action-id (purchase, thumbs-up, like, etc), and any number of other fields, which will be ignored.
+
+It expects CSV or TSV text log type files as input (the delimiter is configurable). It will separate out the actions and use the primary action for recommendations. For instance if you have log data that has purchases, detail-views, add-to-carts, it will separate out the actions into different directories. For this example you would probably want to use only the purchase actions to make recommendations. The solr-recommender will take the raw log files, find the action you ask it to in the column you specify, create index and reverse-index for user and item id and create the input that Mahout expects, which is:
+user-id-key, item-id-key, 1 (for purchase or whatever action is to be recommended)
+
+Mahout expects integer values for the id-keys so the solr-recommender creates them but remembers the original string for later. Then the solr-recommender runs mahout to calculate certain intermediate models that are needed to make recommendation. It converts them all back to the original string-type user and item ids and outputs them into directories where Solr can index them.
+
+In the end you will have text delimited files (CSV, TSV or your choice) that have your original ids of the form
+item-id, list-of-item-ids
+the list-of-item-ids is a single field space delimited (this too can be specified) since Solr automatically uses whitespace delimiters.
+
+*Note:* This is as far as this project takes you--creating the input for Solr indexing and queries.
+
+You will then index the output with Solr.  When you use a user history vector of the same form as  list-of-item-ids for the query against the above index it will return an ordered list of item-ids just like it would if it were searching against doc content and returning doc-ids. The item-ids correspond to recommendations for the user, whose history you used as the query.
+
+The typical use is something like: at runtime you have some user-id that allows you to lookup their history or you have a list-of-item-ids for the 'current user'. You use the history as a query against the item-id, list-of-item-ids to get recs.
+
+You can also use a list-of-item-ids for the item being viewed as a query, in which case you will get "other people who like this item also liked these' type recommendations (item similarity recs).
+
+Solr also allows you to add fields for other metadata like categories or genres. Then mix in this in queries to weight the recs towards the category or genre.
+
 ## Getting Started
 
-To compile the sources download, build, and install the lastest snapshot of Mahout from http://mahout.apache.org. Then go to the root of this project and run
+To run this job you will need to install hadoop 1.X, mahout (>=0.9-SNAPSHOT), and this project. To get recommendations you will also need Solr (>=4.2). Once you have it all setup go to the root of this project and run
 ```
 ~$ mvn install
 ```
