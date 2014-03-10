@@ -115,9 +115,8 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
 
         options.setInputDir(prefFilesRootDir.toString());
 
-        //Path action1Prefs = new Path(new Path(getInputDir(),getPrefsDir()), ActionFileSplitterJob.ACTION_1_DIR).toString();
-        String action1PrefsPath = new Path(new Path(options.getInputDir(), options.getPrefsDir()), aj.getOptions().getAction1Dir()).toString();
-        String action2PrefsPath = new Path(new Path(options.getInputDir(), options.getPrefsDir()), aj.getOptions().getAction2Dir()).toString();
+        String action1PrefsPath = new Path(new Path(options.getPrefsDir()), aj.getOptions().getAction1Dir()).toString();
+        String action2PrefsPath = new Path(new Path(options.getPrefsDir()), aj.getOptions().getAction2Dir()).toString();
 
         ToolRunner.run(getConf(), new RecommenderJob(), new String[]{
             "--input", action1PrefsPath,
@@ -302,7 +301,7 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
         private static final String SECONDARY_TEMP_DIR = "tmp2";
         private static final String PRIMARY_SIMILARITY_MATRIX = "similarityMatrix";//defined as a quoted String in mahout
         public static final String ROOT_SIMS_DIR = "sims";//defined as a quoted String in mahout
-        private static final String DEFAULT_FILE_PATTERN = "part-";
+        private static final String DEFAULT_FILE_PATTERN = ".*tsv";
 
         private static final String DEFAULT_DELIMITER = "\t";
 
@@ -368,7 +367,7 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
             this.action2 = action2;
         }
 
-        @Option(name = "-ifp", aliases = {"--inputFilePattern"}, usage = "Match this pattern when searching for action log files (optional). Default: '.tsv'", required = false)
+        @Option(name = "-ifp", aliases = {"--inputFilePattern"}, usage = "Match this regex pattern when searching for action log files, must match entire file name with the regex (optional). Default: '.*tsv'. Can be ignored if specifying a single file with --input.", required = false)
         public void setFileNamePatternString(String fileNamePatternString) {
             this.fileNamePatternString = fileNamePatternString;
         }

@@ -179,6 +179,9 @@ public class ActionSplitterJob extends Configured implements Tool {
             if (inputIsDir) {
                 FileStatus[] stats = fs.listStatus(baseInputDir);
                 for (FileStatus fstat : stats) {
+                    String filename = fstat.getPath().getName();
+                    String regex = options.getInputFilePattern();
+                    Boolean match = filename.matches(regex);
                     if (fstat.isDir()) {
                         files.addAll(getActionFiles(fstat.getPath()));
                     } else if(fstat.getPath().getName().matches(options.getInputFilePattern())){
