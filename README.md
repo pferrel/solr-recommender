@@ -210,3 +210,6 @@ This assumes default values for action names etc. See the complete option list. 
        --tempDir ../tmp \
        --xRecommend
 ```
+
+##Known Problems
+1.  To be safe, use the full path to the input preferences. A known bug make using some relative paths fail.
