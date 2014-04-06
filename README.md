@@ -1,7 +1,7 @@
 solr-recommender
 ================
 
-Recommender using Solr for recommendation queries and Mahout to generate training data. This implmentation has several unique features:
+Recommender using Solr for recommendation queries and Mahout to generate the similarity matrix model. This implmentation has several unique features:
 * Creates models for single actions recommendations and two-action cross-recommendations.
 * Both models are available as pre-calculated values (all recommendations for all users) and for online query using potentially  recently generated action data not yet incorporated in the models.
 * Ingests text files in CSV or TSV form including arbitrary data along with actions, user, and item ids. Turns these 'log' files into a form compatible with Mahout.
@@ -16,10 +16,10 @@ A collaborative filtering type recommender takes
 user-id, item-id, preference-weight
 
 the Solr-recommender takes:
-user-id (string usually), item-id (likewise a string), action-id (purchase, thumbs-up, like, etc), and any number of other fields, which will be ignored.
+user-id (string usually), item-id (likewise a string), action-id (purchase, thumbs-up, like, so a string constant), and any number of other fields, which will be ignored.
 
-It expects CSV or TSV text log type files as input (the delimiter is configurable). It will separate out the actions and use the primary action for recommendations. For instance if you have log data that has purchases, detail-views, add-to-carts, it will separate out the actions into different directories. For this example you would probably want to use only the purchase actions to make recommendations. The solr-recommender will take the raw log files, find the action you ask it to in the column you specify, create index and reverse-index for user and item id and create the input that Mahout expects, which is:
-user-id-key, item-id-key, 1 (for purchase or whatever action is to be recommended)
+It expects CSV or TSV text log type files as input (the delimiter is configurable). It will separate out the actions and use the primary action for recommendations. For instance if you have log data that has purchases, detail-views, add-to-carts, it will separate out the actions into different directories. For this example you would probably want to use only the purchase actions to make recommendations. The solr-recommender will take the raw log files, find the action you ask it to in the column you specify, create index and reverse-index for user and item ids and create the input that Mahout expects, which is:
+user-id-key, item-id-key, 1 (for purchase or whatever action is to be recommended). Mahout IDs are ordinal integers so the index/reverse index is kept external to Mahout.
 
 Mahout expects integer values for the id-keys so the solr-recommender creates them but remembers the original string for later. Then the solr-recommender runs mahout to calculate certain intermediate models that are needed to make recommendation. It converts them all back to the original string-type user and item ids and outputs them into directories where Solr can index them.
 
@@ -210,6 +210,8 @@ This assumes default values for action names etc. See the complete option list. 
        --tempDir ../tmp \
        --xRecommend
 ```
+
+2. The creation of the indexes is a single machine single threaded operation. It creates an in-memory BiHashMap (Guava collections) and eventually writes it to a delimited file. This BiHashMap is instantiated on every cluster machine once in memory to do External <-> Mahout id lookups. All hadoop jobs on the node reference this single in memory index.
 
 ##Known Problems
 1.  To be safe, use the full path to the input preferences. A known bug make using some relative paths fail.
