@@ -50,7 +50,7 @@ There is a sample script for running the job in scripts/solr-recommender. To get
 ```
 ~$ ./solr-recommender
 ```
-This will use simple sample data from the project and create sample output in project root dir.
+This will use simple sample data from the project and create sample output in the project root dir.
 
 Running any job will output help, for example:
 ```
@@ -182,6 +182,24 @@ H_a2 = all user history for recommendations of action2 in column vectors. This m
 R_a1+ R_a2 = R, assumes a non-weighted linear combination, ideally they are weighted to optimize results.
 ```
 
+## How To Generate Recommendations
+
+1. Set up some data store that you plan to use Solr with. This can be HDFS or a Database or even a local filesystem. I generally use a database because some of the features of Solr will allow the seamless blending if content, metadata, and collaborative filtering to make recommendations.
+2. Store the contents of the item-link-docs csv file in the place you will use solr to index. For me this is a collection in MaongoDB representing the items in a catalog. Each of the fields in the CSV (only one if you are not doing --xrecommend) will be stored as an attribute of the item. Ideally store them as a string array. In my case I have to store them as a space delimited sting of item tokens.
+3. Using Solr 4.2 or greater index the collection of items
+4. At runtime when you wish to make recommendations of the simplest form make a fulltext query of the current user's preferred items on the collection of items specifying the query to be on the field where the item-links are kept (the place previously indexed by Solr).
+5. The results of this query will be an ordered list of recommended items.
+6. To bias the query towards a category or other metadata stored with the items simple index that field along with the item-links. Then in the query apply the user history to the item-links field and the category to the categories field of your item collection. This will return recommended items biased towards ones that include the category supplied in the query. Boost the category and get more bias.
+7. For users who have no history you can make item similarity recommendations in certain cases. Imagine the user is looking at an item. You may want to form a query using the item-links for the one being viewed and bias results by the categories of the item viewed. This can be done with no user history. You could describe this recommendation set as "people who liked this item also liked these, in similar categories"
+
+As you can see the use is extremely flexible and since the flexibility is in how the query is formed, it makes the system very easy to experiment with.
+
+## How To Retrain The Recommender
+
+Recommendations can be made with initial data for some time but as new users express their preferences and as new items are added to the collection you will want to re-train the recommender. This is done by recalculating the item-links on all data. Add your new preferences to the total data and re-run the RecommenderUpdateJob on it. Re-import the item-links to your collection and have Solr reindex. If you are using a DB to store the collection and item-links the reindex may be done automatically.
+
+One thing to note about any recommender is that no item without preferences can be recommended. So as new items are added to you catalog collection you'll want to retrain the recommender. Also more preference data usually improves recommendation so retrain as new preferences are available.
+
 ## TBD
 
 Happy path works, creating the two HFS part file directories of text files for indexing by Solr. Many other options are not yet supported or tested.
@@ -191,7 +209,7 @@ Happy path works, creating the two HFS part file directories of text files for i
 3. The only unit test is to hand run and check by eye using the supplied the bash script, this will be made a unit test with automatic output verification.
 
 ##Notes
-1. 1 and 2 actions are working. The --xRecommend option is needed with two types of actions. To get only RecommenderJob type output to Solr execute the following from solr-recommender/scripts:
+ 1. 1 and 2 actions are working. The --xRecommend option is needed with two types of actions. To get only RecommenderJob type output to Solr execute the following from solr-recommender/scripts:
 ```
 ~$ hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar \
        finderbots.recommenders.hadoop.RecommenderUpdateJob \
@@ -211,7 +229,7 @@ This assumes default values for action names etc. See the complete option list. 
        --xRecommend
 ```
 
-2. The creation of the indexes is a single machine single threaded operation. It creates an in-memory BiHashMap (Guava collections) and eventually writes it to a delimited file. This BiHashMap is instantiated on every cluster machine once in memory to do External <-> Mahout id lookups. All hadoop jobs on the node reference this single in memory index.
+ 2. The creation of the indexes is a single machine single threaded operation. It creates an in-memory BiHashMap (Guava collections) and eventually writes it to a delimited file. This BiHashMap is instantiated on every cluster machine once in memory to do External <-> Mahout id lookups. All hadoop jobs on the node reference this single in memory index.
 
 ##Known Problems
-1.  To be safe, use the full path to the input preferences. A known bug make using some relative paths fail.
+1.  To be safe, use the full path to the input preferences.
