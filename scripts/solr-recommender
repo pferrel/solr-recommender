@@ -4,7 +4,7 @@ set -e #exit on any error return
 
 if [ "$1" == "" ] ; then
    echo "No input spcified so using sample preference data"
-   INPUT="../src/test/resources/logged-preferences"
+   INPUT="../src/test/resources/logged-preferences/"
 else
    INPUT=$1
 fi
@@ -26,7 +26,7 @@ echo "Writing recommendations to: "$OUT
 hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar \
     finderbots.recommenders.hadoop.RecommenderUpdateJob  \
  	--input $INPUT \
- 	--inputFilePattern ".tsv" \
+ 	--inputFilePattern ".*tsv" \
  	--output $OUT \
  	--tempDir $TEMP \
  	--xRecommend
