@@ -3,28 +3,37 @@
 echo "Usage: This script with no parameters processes the sample data"
 echo "To run anything more execute the job with no params to get a help screen:"
 echo "hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar finderbots.recommenders.hadoop.RecommenderUpdateJob"
-echo "Any other use of this script is minimal: './solr-recommender inputDir outputDir"
+echo "Any other use of this script is minimal: './solr-recommender full-HDFS-input-dir-path full-HDFS-output-dir-path"
 echo "Depending on your setup these should be HDFS or local filesystem directories with .tsv files"
 
 set -e #exit on any error return
 
+
 if [ "$1" == "" ] ; then
-   echo "No input spcified so using sample preference data"
-   INPUT="../src/test/resources/logged-preferences/"
+    echo "No input specified so using sample preference data"
+    INPUT="../src/test/resources/logged-preferences/"
+
+    if [  ${MAHOUT_LOCAL:+1} ] ; then
+        echo "Processing example data locally"
+    else
+        echo "Trying to process the example data but Mahout is not in local mode"
+        echo "Configure Hadoop to run locally and set the environment variable MAHOUT_LOCAL=true"
+        exit
+    fi
 else
-   INPUT=$1
+    INPUT=$1
 fi
 
 echo "Getting pref data from: "$INPUT
 
 if [ "$2" == "" ] ; then
-   echo "No output specified so using ../tmp as temp and ../out for output"
-   echo "everything in both directories will be cleared and overwritten"
-   TEMP="../tmp"
-   OUT="../out"
+    echo "No output specified so using ../tmp as temp and ../out for output"
+    echo "everything in both directories will be cleared and overwritten"
+    TEMP="../tmp"
+    OUT="../out"
 else
-   TEMP=$2"/tmp"
-   OUT=$2"/solr-out"
+    TEMP=$2"/tmp"
+    OUT=$2"/solr-out"
 fi
 
 echo "Writing recommendations to: "$OUT
