@@ -118,11 +118,11 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
         String action1PrefsPath = new Path(new Path(options.getPrefsDir()), aj.getOptions().getAction1Dir()).toString();
         String action2PrefsPath = new Path(new Path(options.getPrefsDir()), aj.getOptions().getAction2Dir()).toString();
 
-        LOGGER.info("prefFilesRootDir.toString() = "+prefFilesRootDir.toString());
-        LOGGER.info("options.getPrefsDir() = "+options.getPrefsDir());
-        LOGGER.info("aj.getOptions().getAction1Dir() = "+aj.getOptions().getAction1Dir());
-        LOGGER.info("action1PrefsPath = "+action1PrefsPath.toString());
-        LOGGER.info("action2PrefsPath = "+action2PrefsPath.toString());
+        //LOGGER.info("prefFilesRootDir.toString() = "+prefFilesRootDir.toString());
+        //LOGGER.info("options.getPrefsDir() = "+options.getPrefsDir());
+        //LOGGER.info("aj.getOptions().getAction1Dir() = "+aj.getOptions().getAction1Dir());
+        //LOGGER.info("action1PrefsPath = "+action1PrefsPath.toString());
+        //LOGGER.info("action2PrefsPath = "+action2PrefsPath.toString());
         ToolRunner.run(getConf(), new RecommenderJob(), new String[]{
             "--input", action1PrefsPath,
             "--output", options.getPrimaryRecsPath(),
