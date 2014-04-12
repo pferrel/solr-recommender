@@ -48,7 +48,7 @@ This will build the job jar with all dependencies in ./target/solr-recommender-0
 
 There is a sample script for running the job in scripts/solr-recommender. To get a trivial sample output go to the solr-recommender/scripts directory and run:
 ```
-~$ ./solr-recommender
+~$ ./solr-recommender-example
 ```
 This will use simple sample data from the project and create sample output in the project root dir.
 

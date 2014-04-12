@@ -24,7 +24,7 @@ if [ "$2" == "" ] ; then
    OUT="../out"
 else
    TEMP=$2"/tmp"
-   OUT=$2"/out"
+   OUT=$2"/solr-out"
 fi
 
 echo "Writing recommendations to: "$OUT
