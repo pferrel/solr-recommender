@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+echo "Usage: This script with no parameters processes the sample data"
+echo "To run anything more execute the job with no params to get a help screen:"
+echo "hadoop jar ../target/solr-recommender-0.1-SNAPSHOT-job.jar finderbots.recommenders.hadoop.RecommenderUpdateJob"
+echo "Any other use of this script is minimal: './solr-recommender inputDir outputDir"
+echo "Depending on your setup these should be HDFS or local filesystem directories with .tsv files"
+
 set -e #exit on any error return
 
 if [ "$1" == "" ] ; then
