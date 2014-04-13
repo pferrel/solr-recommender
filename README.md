@@ -10,6 +10,10 @@ Recommender using Solr for recommendation queries and Mahout to generate the sim
 * Encodes user history in CSV files with one row per user (user id) and items for a given action in columns (item ids).
 * Once indexed by Solr (outside the scope of this project) using a user's action history as a query on the item similarity matrix will yield recommendations as an ordered list of results.
 
+## Demo Site
+
+https://guide.finderbots.com uses this project to drive recommendations for a guide to online video. To experiment with it, go to the 'trainer', which asks for you to pick some favorite videos, then go to 'recommend' for recs of several types.
+
 ## Usage Scenario
 
 A collaborative filtering type recommender takes
