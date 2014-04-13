@@ -198,7 +198,7 @@ As you can see the use is extremely flexible and since the flexibility is in how
 
 Recommendations can be made with initial data for some time but as new users express their preferences and as new items are added to the collection you will want to re-train the recommender. This is done by recalculating the item-links on all data. Add your new preferences to the total data and re-run the RecommenderUpdateJob on the total. Re-import the item-links to your collection and have Solr reindex. If you are using a DB to store the collection and item-links the reindex may be done automatically.
 
-One thing to note about any recommender is that no item without preferences can be recommended. So as new items are added to your catalog collection you'll want to re-train the recommender. Also more preference data usually improves recommendation so re-train as new preferences are available. If you have no preference data for some items any query that includes metadata will work even if no preference data is in the query or index. This last feature is known as one solution for the 'cold-start' problem in CF recommenders.
+One thing to note about cooccurrence collaborative filtering recommenders is that no item without preferences can be recommended. So as new items are added to your collection you'll want to re-train the recommender. Also more preference data usually improves recommendations so re-train as new preferences are available. If you have no preference data for some items any query that includes metadata will work even if no preference data is in the query or index. This last feature is known as a solution to the 'cold-start' problem in collaborative filtering recommenders.
 
 ## TBD
 
