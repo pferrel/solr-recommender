@@ -88,7 +88,17 @@ public class VectorsToCSVFunction extends BaseOperation implements Function {
 
             @Override
             public int compare(Pair<Integer,Double> o1, Pair<Integer,Double> o2) {
-                return (o1.getSecond() > o2.getSecond() ? -1 : (o1.equals(o2) ? 0 : 1));
+                if (o1.getSecond() > o2.getSecond()) {
+                    return -1;
+                } else if (o1.getSecond() < o2.getSecond()) {
+                    return 1;
+                } else if (o1.getFirst() > o2.getFirst()) {
+                    return -1;
+                } else if (o1.getFirst() < o2.getFirst()) {
+                    return 1;
+                } else {
+                    return 0;
+                }
             }
         }
 
