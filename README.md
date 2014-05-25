@@ -54,7 +54,17 @@ There is a sample script for running the job in scripts/solr-recommender. To get
 ```
 ~$ ./solr-recommender-example
 ```
-This will use simple sample data from the project and create sample output in the project root dir.
+This will use simple sample data from the project and create sample output in the project root dir. The [sample data | https://github.com/pferrel/solr-recommender/blob/master/src/test/resources/logged-preferences/action-logs.csv] is of the form:
+```
+u1,purchase,iphone
+u1,purchase,ipad
+u2,purchase,nexus
+u2,purchase,galaxy
+u3,purchase,surface
+u4,purchase,iphone
+u4,purchase,galaxy
+u1,view,iphone
+```
 
 Running any job will output help, for example:
 ```
