@@ -1,7 +1,7 @@
 solr-recommender
 ================
 
-Recommender using Solr for recommendation queries and Mahout to generate the similarity matrix model. This implmentation has several unique features:
+Recommender using Solr for recommendation queries and Mahout to generate the similarity matrix model. This implementation has several unique features:
 * Creates models for single actions recommendations and two-action cross-recommendations.
 * Both models are available as pre-calculated values (all recommendations for all users) and for online query using potentially  recently generated action data not yet incorporated in the models.
 * Ingests text files in CSV or TSV form including arbitrary data along with actions, user, and item ids. Turns these 'log' files into a form compatible with Mahout.
