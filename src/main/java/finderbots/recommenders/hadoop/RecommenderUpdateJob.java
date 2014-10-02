@@ -105,6 +105,9 @@ public final class RecommenderUpdateJob extends Configured implements Tool {
             "--action2", options.getAction2(),
             "--inputDelim", options.getInputDelim(),
             "--outputDelim", options.getOutputDelim(),
+            "--actionIDCol", Integer.toString(options.getActionColumn()),
+            "--itemIDCol", Integer.toString(options.getItemIDColumn()),
+            "--userIDCol", Integer.toString(options.getUserIDColumn()),
         });
 
         // need to get the number of users and items from the splitter, which also creates indexes
