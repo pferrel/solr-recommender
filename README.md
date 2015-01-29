@@ -1,5 +1,5 @@
 #Deprecation warning: 
-This project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now supports better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*
+This project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now has better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*. See [documentation here](http://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html).
 
 
 solr-recommender
