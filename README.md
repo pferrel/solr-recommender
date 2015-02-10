@@ -3,8 +3,9 @@ Now that I've added this functionality to Spark-Mahout, I'll be updating this pr
 
 We'll do it with server log files to Kafka to Spark Streaming to Spark-Mahout's SimilarityAnalysis.cooccurrence to Solr. Solr recommendation queries will be via a client piece provided. 
 
-##Moved:
-A replacement for this project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now has better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*. See [documentation here](http://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html).
+## Demo Site
+
+https://guide.finderbots.com uses this project to drive recommendations for a guide to online video. To experiment with it, go to the 'trainer', which asks for you to pick some favorite videos, then go to 'recommend' for recs of several types.
 
 ##References:
 
@@ -13,7 +14,10 @@ A replacement for this project has been moved into [Mahout 1.0](https://github.c
  3. A short ebook by Ted Dunning, [Practicle Mahine Learning](https://www.mapr.com/practical-machine-)
  4. Spark-Mahout: [Intro to Cooccurrence Recommeders with Spark](https://github.com/apache/mahout)](https://github.com/apache/mahout)
 
+##Moved:
+A replacement for this project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now has better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*. See [documentation here](http://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html).
 
+##Old Version
 solr-recommender
 ================
 
@@ -25,10 +29,6 @@ Recommender using Solr for recommendation queries and Mahout to generate the sim
 * Turns the Mahout item similarity matrix into text docs in Solr format--in Solr terms this is one doc (item id) per row and the doc contents in a column (similar items stored as item ids).
 * Encodes user history in CSV files with one row per user (user id) and items for a given action in columns (item ids).
 * Once indexed by Solr (outside the scope of this project) using a user's action history as a query on the item similarity matrix will yield recommendations as an ordered list of results.
-
-## Demo Site
-
-https://guide.finderbots.com uses this project to drive recommendations for a guide to online video. To experiment with it, go to the 'trainer', which asks for you to pick some favorite videos, then go to 'recommend' for recs of several types.
 
 ## Usage Scenario
 
