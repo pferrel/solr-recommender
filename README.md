@@ -1,10 +1,17 @@
 #Update Coming:
 Now that I've added this functionality to Spark-Mahout, I'll be updating this project with a bunch of new stuff. Point your server logs to this project, add a code snippet for action mining, and get always up to date recommendations that are scalable, multimodal, and realtime.
 
-We'll do it with tail2kafka, Kafka, Spark Streaming, Spark-Mahout's SimilarityAnalysis.cooccurrence, and Solr.
+We'll do it with server log files to Kafka to Spark Streaming to Spark-Mahout's SimilarityAnalysis.cooccurrence to Solr. Solr recommendation queries will be via a client piece provided. 
 
 ##Moved:
 A replacement for this project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now has better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*. See [documentation here](http://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html).
+
+##References:
+
+ 1. [A Universal Multimodal Recommender](http://occamsmachete.com/ml/2014/10/07/creating-a-unified-recommender-with-mahout-and-a-search-engine/)
+ 2. What New In Recommenders: [Part 1](http://occamsmachete.com/ml/2014/08/11/mahout-on-spark-whats-new-in-recommenders/) and [Part 2](http://occamsmachete.com/ml/2014/09/09/mahout-on-spark-whats-new-in-recommenders-part-2/)
+ 3. A short ebook by Ted Dunning, [Practicle Mahine Learning](https://www.mapr.com/practical-machine-)
+ 4. Spark-Mahout: [Intro to Cooccurrence Recommeders with Spark](https://github.com/apache/mahout)](https://github.com/apache/mahout)
 
 
 solr-recommender
