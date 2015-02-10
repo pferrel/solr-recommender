@@ -1,5 +1,10 @@
-#Deprecation warning: 
-This project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now has better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*. See [documentation here](http://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html).
+#Update Coming:
+Now that I've added this functionality to Spark-Mahout, I'll be updating this project with a bunch of new stuff. Point your server logs to this project, add a code snippet for action mining, and get always up to date recommendations that are scalable, multimodal, and realtime.
+
+We'll do it with tail2kafka, Kafka, Spark Streaming, Spark-Mahout's SimilarityAnalysis.cooccurrence, and Solr.
+
+##Moved:
+A replacement for this project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now has better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*. See [documentation here](http://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html).
 
 
 solr-recommender
