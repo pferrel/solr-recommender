@@ -17,9 +17,7 @@ https://guide.finderbots.com uses this project to drive recommendations for a gu
 ##Moved:
 A replacement for this project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now has better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*. See [documentation here](http://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html).
 
-##Old Version
-solr-recommender
-================
+##solr-recommender v 0.0.1
 
 Recommender using Solr for recommendation queries and Mahout to generate the similarity matrix model. This implementation has several unique features:
 * Creates models for single actions recommendations and two-action cross-recommendations.
