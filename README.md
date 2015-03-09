@@ -129,7 +129,7 @@ The RecommenderUpdateJob runs various subjobs, some of which can be run separate
   1. Ingest text "log" files splitting into DistributedRowMatix(es) one per action
   2. Write out BiMaps that translate External string item and user IDs to and from internal Mahout long IDs.
   3. Calculate [B'B] with LLR using the Mahout Item-based Recommender job to get the item-item 'similarity matrix' and write these to Solr for indexing.
-  4. Calculate [A'B] using Mahout transpose and matrix multiply jobs to get the 'cross-similarity matrix', write these to Solr for indexing
+  4. Calculate [B'A] using Mahout transpose and matrix multiply jobs to get the 'cross-similarity matrix', write these to Solr for indexing
   4.5  Calculates all recommendations and cross-recommendations for all users using the mapreduce version of the Mahout Recommender and XRecommender. These are not neccessary when using Solr only to return recommendations. It should be noted that is is likely the precalculated recommendations and cross-recommendations and the ones returned by Solr will be different. The difference has not be quantified.
   5. Not implemented here: Solr indexes the various fields and is ready to return raw recommendations.
   6. Not implemented here: Queries, consisting of user history vectors of itemIDs are fed to Solr. If the primary action is being used for recommendations, the primary action field of the index is queried. If both primary (recommendations) and secondary (cross-recommendations) are desired both fields are queried. If item similarity is required, the doc associated with an item ID is returned indicating similar items. This document field will be ordered by the rank of similarity that any item has with the doc item.
