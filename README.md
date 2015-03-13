@@ -7,7 +7,7 @@ We'll do it with server log files to Kafka to Spark Streaming to Spark-Mahout's 
 
 https://guide.finderbots.com uses this project to drive recommendations for a guide to online video. To experiment with it, go to the 'trainer', which asks for you to pick some favorite videos, then go to 'recommend' for recs of several types.
 
-![image](http://s6.postimg.org/xlyzz0c8h/Guide_detail_page.png)
+[![image](http://s6.postimg.org/xlyzz0c8h/Guide_detail_page.png)](https://guide.finderbots.com)
 
 ##References:
 
