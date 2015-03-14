@@ -14,7 +14,7 @@ https://guide.finderbots.com uses this project to drive recommendations for a gu
  1. [A Universal Multimodal Recommender](http://occamsmachete.com/ml/2014/10/07/creating-a-unified-recommender-with-mahout-and-a-search-engine/)
  2. What New In Recommenders: [Part 1](http://occamsmachete.com/ml/2014/08/11/mahout-on-spark-whats-new-in-recommenders/) and [Part 2](http://occamsmachete.com/ml/2014/09/09/mahout-on-spark-whats-new-in-recommenders-part-2/)
  3. A short ebook by Ted Dunning, [Practicle Mahine Learning](https://www.mapr.com/practical-machine-)
- 4. Spark-Mahout: [Intro to Cooccurrence Recommeders with Spark](https://github.com/apache/mahout)](https://github.com/apache/mahout)
+ 4. Spark-Mahout: [Intro to Cooccurrence Recommeders with Spark](https://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html) (https://github.com/apache/mahout)
 
 ##Moved:
 A replacement for this project has been moved into [Mahout 1.0](https://github.com/apache/mahout). The new Mahout CLI is called *spark-itemsimilarity*.  It now has better csv support and real cross-cooccurrence with LLR. It runs about 50x faster than this project and 10X faster than the hadoop version of *itemsimilarity*. See [documentation here](http://mahout.apache.org/users/recommender/intro-cooccurrence-spark.html).
@@ -215,7 +215,7 @@ R_a1+ R_a2 = R, assumes a non-weighted linear combination, ideally they are weig
 ## How To Generate Recommendations
 
 1. Set up some data store that you plan to use Solr with. This can be HDFS or a Database or even a local filesystem. I generally use a database because some of the features of Solr will allow the seamless blending if content, metadata, and collaborative filtering to make recommendations.
-2. Store the contents of the item-link-docs csv file in the place you will use solr to index. For me this is a collection in MongoDB representing the items in a catalog. Each of the fields in the CSV (only one if you are not doing --xrecommend) will be stored as an attribute of the item. Ideally store them as a string array. In my case I have to store them as a space delimited sting of item tokens.
+2. Store the contents of the item-link-docs csv file in the place you will use solr to index. For me this is a collection in MongoDB representing the items in a catalog. Each of the fields in the CSV (only one if you are not doing --xrecommend) will be stored as an attribute of the item. Ideally store them as a string array. In my case I have to store them as a space delimited string of item tokens.
 3. Using Solr 4.2 or greater index the collection of items
 4. At runtime when you wish to make recommendations of the simplest form make a fulltext query of the current user's preferred items on the collection of items specifying the query to be on the field where the item-links are kept (the place previously indexed by Solr).
 5. The results of this query will be an ordered list of recommended items.
