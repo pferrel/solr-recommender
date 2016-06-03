@@ -1,7 +1,10 @@
-#Update Coming:
-Now that this functionality is in Spark-Mahout, I'll be updating this project with a bunch of new stuff. It will stream your server logs through a code snippet (mostly a couple regexes you write) for action mining, and get always up to date recommendations that are scalable, multimodal, and realtime. Watch the [Streaming Multimodal Recommender](https://github.com/pferrel/template-scala-parallel-multimodal-recommendation).
+# Major Upgrade
 
-We'll do it with server log files to Kafka to Spark Streaming to Spark-Mahout's SimilarityAnalysis.cooccurrence to Solr. Solr recommendation queries will be via a client piece provided. 
+The old Mahout + Solr + Hadoop recommender has been completely revamped. It now uses the Spark version of Mahout-Samsara and uses Elasticsearch, which, like Solr, is based on Lucene. Many improvements in quality, speed, flexibiltiy, and scalabiltiy. It's also commercially supported if you need help tuning or setting up. It's based on PredictionIO, which has been inducted into the Apache Incubator so everything is still open source.
+
+ - **Code**: [https://github.com/actionml/template-scala-parallel-universal-recommendation](https://github.com/actionml/template-scala-parallel-universal-recommendation)
+ - **Support**: [http://actionml.com/universal-recommender](http://actionml.com/universal-recommender)
+ - **Documentation**: [http://www.actionml.com/docs/ur](http://www.actionml.com/docs/ur)
 
 ## Demo Site
 
